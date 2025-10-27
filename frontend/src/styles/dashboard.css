@@ -1,0 +1,77 @@
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: #0f172a;
+  color: #f1f5f9;
+  padding: 2rem 1.5rem;
+}
+
+.sidebar h1 {
+  margin: 0 0 2rem;
+  font-size: 1.5rem;
+}
+
+.sidebar button {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: rgba(148, 163, 184, 0.15);
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar button.active {
+  background: #38bdf8;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+}
+
+.header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.body {
+  padding: 2rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.cards {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 15px 25px rgba(15, 23, 42, 0.08);
+}
+
+.recommendations {
+  display: grid;
+  gap: 1rem;
+}
+
+.recommendation {
+  background: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+}
