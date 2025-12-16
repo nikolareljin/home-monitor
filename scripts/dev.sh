@@ -21,19 +21,35 @@ usage() {
   cat <<'EOF'
 
 Commands:
-  up [--no-build] [--attach] [service...]   Build (unless --no-build) and start the stack
-  down [args...]                            Stop containers (passes args to docker compose down)
-  build [service...]                        Build images
-  status                                    Show Docker engine + compose service status
-  logs [service]                            Tail logs (all services by default)
-  test-backend [args...]                    Run Django tests via docker compose run
-  shell [service] [shell]                   Open a shell inside a service (default: backend/bash)
-  help                                      Show this help text
+ up [--no-build] [--attach] [service...]   Build (unless --no-build) and start the stack
+ down [args...]                            Stop containers (passes args to docker compose down)
+ build [service...]                        Build images
+ status                                    Show Docker engine + compose service status
+ logs [service]                            Tail logs (all services by default)
+ test-backend [args...]                    Run Django tests via docker compose run
+ shell [service] [shell]                   Open a shell inside a service (default: backend/bash)
+ help                                      Show this help text
 EOF
 }
 
 ensure_prereqs() {
-  check_docker
+  # Hide the default helper error so we can print a more actionable message
+  if ! check_docker >/dev/null 2>&1; then
+    if ! command -v docker >/dev/null 2>&1; then
+      log_error "Docker CLI not found. Install Docker (Desktop/Engine) and retry."
+      exit 1
+    fi
+    local info_out
+    info_out=$(docker info 2>&1 || true)
+    if echo "$info_out" | grep -Eiq "permission denied|operation not permitted"; then
+      log_error "Docker is installed but current user cannot talk to the daemon."
+      log_info "On Linux, add your user to the docker group: sudo usermod -aG docker \"$USER\" && newgrp docker"
+    else
+      log_error "Docker daemon is not running or not accessible."
+      log_info "Start Docker Desktop/Engine (or colima/podman socket) and rerun the command."
+    fi
+    exit 1
+  fi
   check_project_root
 }
 
