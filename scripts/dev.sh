@@ -12,7 +12,7 @@ SCRIPT_HELPERS_DIR="${SCRIPT_HELPERS_DIR:-$SCRIPT_DIR/script-helpers}"
 
 # shellcheck source=/dev/null
 source "$SCRIPT_HELPERS_DIR/helpers.sh"
-shlib_import logging docker env help
+shlib_import logging docker env browser help
 
 init_include
 
@@ -29,6 +29,9 @@ Commands:
  test-backend [args...]                    Run Django tests via docker compose run
  shell [service] [shell]                   Open a shell inside a service (default: backend/bash)
  help                                      Show this help text
+
+Flags:
+ -h, --help                                Show this help text
 EOF
 }
 
@@ -71,6 +74,15 @@ cmd_up() {
 
   log_info "Starting docker compose stack${build:+ (with build)}${detach:+ (detached)}..."
   docker_compose up "${args[@]}" "${extra[@]}"
+
+  # If we reach here, services should be running; print useful links
+  local api_url="http://localhost:${API_PORT:-8000}"
+  local frontend_url="http://localhost:${FRONTEND_PORT:-8080}"
+  log_info "Backend API: ${api_url}/api/summary/"
+  log_info "Frontend: ${frontend_url}"
+
+  # Attempt to open the frontend in a browser when available
+  open_frontend_when_ready "${FRONTEND_WAIT_TIMEOUT:-120}"
 }
 
 cmd_down() {
@@ -112,6 +124,15 @@ cmd_shell() {
 
 main() {
   local cmd="${1:-help}"; shift || true
+
+  # Global help flag support (e.g., './dev.sh -h' or './dev.sh up -h')
+  for arg in "$cmd" "$@"; do
+    if [[ "$arg" == "-h" || "$arg" == "--help" ]]; then
+      usage
+      exit 0
+    fi
+  done
+
   case "$cmd" in
     up) cmd_up "$@" ;;
     down) cmd_down "$@" ;;

@@ -47,7 +47,9 @@ scripts/    # Host helper scripts + script-helpers submodule
 
 ## Helper scripts (host)
 
-- `./scripts/dev.sh up [--no-build] [--attach] [service...]` – build images if needed and start the stack (detached by default).
+- `./start [-b] [service...]` – start the stack via `dev.sh`; `-b` forces rebuild, otherwise starts without rebuilding.
+- `./stop` – stop containers (passes through to `dev.sh down`).
+- `./dev` (symlink to `./scripts/dev.sh`) or `./scripts/dev.sh up [--no-build] [--attach] [service...]` – build images if needed and start the stack (detached by default).
 - `./scripts/dev.sh down` – stop containers (extra args are passed through to `docker compose down`).
 - `./scripts/dev.sh status` – show Docker engine and compose service status with glyphs.
 - `./scripts/dev.sh logs [service]` – tail logs for all services or a single one.
@@ -55,6 +57,8 @@ scripts/    # Host helper scripts + script-helpers submodule
 - `./scripts/dev.sh shell [service] [shell]` – open an interactive shell in a service (defaults to `backend` with `bash`).
 
 The helpers rely on the `scripts/script-helpers` git submodule for logging and Docker utilities. Ensure the submodule is initialized before running the scripts.
+
+> If port `11434` is already used by a host Ollama instance, set `OLLAMA_HOST_PORT` in `.env` (e.g., `OLLAMA_HOST_PORT=11435`) before running `./scripts/dev.sh up`.
 
 ## Django API overview
 
