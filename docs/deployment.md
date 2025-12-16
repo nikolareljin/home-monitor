@@ -27,6 +27,7 @@ Home Monitor is packaged as a Docker Compose stack that includes PostgreSQL, the
 docker compose build --pull
 docker compose up -d
 ```
+> For local development you can also use `./scripts/dev.sh up` (requires the `scripts/script-helpers` submodule).
 
 Services exposed:
 
