@@ -18,10 +18,16 @@ Home Monitor is a Django + React platform for aggregating and analysing air qual
 ```
 backend/    # Django project (`home_monitor`) and monitoring app
 frontend/   # React/Vite dashboard
+scripts/    # Host helper scripts + script-helpers submodule
  data/      # Host-mounted media/static dirs for the backend
 ```
 
 ## Getting started
+
+0. **Pull helper submodule**
+   ```bash
+   git submodule update --init --recursive
+   ```
 
 1. **Configure environment variables**
    ```bash
@@ -29,15 +35,30 @@ frontend/   # React/Vite dashboard
    # Fill in API keys and secrets
    ```
 
-2. **Launch the stack**
+2. **Launch the stack (host helper)**
    ```bash
-   docker compose up --build
+   ./scripts/dev.sh up
    ```
    - Django API: http://localhost:8000/api/summary/
    - React UI: http://localhost:8080
    - Ollama API: http://localhost:11434
 
 3. **Access the dashboard** – Open http://localhost:8080, pick an Ollama model if multiple are available, and review the AI generated actions.
+
+## Helper scripts (host)
+
+- `./start [-b] [service...]` – start the stack via `dev.sh`; `-b` forces rebuild, otherwise starts without rebuilding.
+- `./stop` – stop containers (passes through to `dev.sh down`).
+- `./dev` (symlink to `./scripts/dev.sh`) or `./scripts/dev.sh up [--no-build] [--attach] [service...]` – build images if needed and start the stack (detached by default).
+- `./scripts/dev.sh down` – stop containers (extra args are passed through to `docker compose down`).
+- `./scripts/dev.sh status` – show Docker engine and compose service status with glyphs.
+- `./scripts/dev.sh logs [service]` – tail logs for all services or a single one.
+- `./scripts/dev.sh test-backend [args...]` – run Django tests inside the backend container.
+- `./scripts/dev.sh shell [service] [shell]` – open an interactive shell in a service (defaults to `backend` with `bash`).
+
+The helpers rely on the `scripts/script-helpers` git submodule for logging and Docker utilities. Ensure the submodule is initialized before running the scripts.
+
+> If port `11434` is already used by a host Ollama instance, set `OLLAMA_HOST_PORT` in `.env` (e.g., `OLLAMA_HOST_PORT=11435`) before running `./scripts/dev.sh up`.
 
 ## Django API overview
 

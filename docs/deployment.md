@@ -27,12 +27,14 @@ Home Monitor is packaged as a Docker Compose stack that includes PostgreSQL, the
 docker compose build --pull
 docker compose up -d
 ```
+> For local development you can also use `./start` (uses `./dev`/`./scripts/dev.sh` under the hood; requires the `scripts/script-helpers` submodule).
+> If port `11434` is occupied on the host, set `OLLAMA_HOST_PORT` in `.env` (e.g., `OLLAMA_HOST_PORT=11435`) before starting.
 
 Services exposed:
 
-- Backend API: http://localhost:8000 (health: `/api/health/`)
-- Frontend UI: http://localhost:8080
-- Ollama API: http://localhost:11434 (local only by default)
+- Backend API: http://localhost:${API_PORT:-8000} (health: `/api/health/`)
+- Frontend UI: http://localhost:${FRONTEND_PORT:-8080}
+- Ollama API: http://localhost:${OLLAMA_HOST_PORT:-11434} (local only by default)
 - PostgreSQL: on internal Docker network (`db:5432`)
 
 Logs:

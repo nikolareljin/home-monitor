@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# SCRIPT: stop
+# DESCRIPTION: Stop the Home Monitor Docker stack via the dev helper.
+# USAGE: ./stop [args...]
+# PARAMETERS:
+#   args: optional extra flags passed to docker compose down via dev.sh
+# EXAMPLE: ./stop
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEV_SCRIPT="$SCRIPT_DIR/scripts/dev.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: ./stop [args...]
+  -h, --help  Show this help
+EOF
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+exec "$DEV_SCRIPT" down "$@"

@@ -8,7 +8,7 @@ This directory captures architecture, configuration, and operational guidance fo
 - [Backend Guide](backend.md) – Django services, integrations, storage, and API references.
 - [AI & Analytics](ai.md) – How heuristics and Ollama collaborate, prompt design, and tuning guidance.
 - [Frontend Guide](frontend.md) – React/Vite dashboard, component structure, and UX considerations.
-- [Deployment Guide](deployment.md) – Docker Compose, production hardening, and operations.
+- [Deployment Guide](deployment.md) – Docker Compose, host helper scripts (`./start`, `./stop`, `./dev`), production hardening, and operations.
 - [Extensibility & Roadmap](extensibility.md) – Adding sensors, Home Assistant automations, and future ideas.
 
 > Keep the docs current when adding new integrations or changing the deployment topology.

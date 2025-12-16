@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# SCRIPT: start
+# DESCRIPTION: Start the Home Monitor Docker stack via the dev helper, with optional rebuild.
+# USAGE: ./start [-b] [service...]
+# PARAMETERS:
+#   -b: rebuild images before starting
+#   service: optional compose services to start
+# EXAMPLE: ./start -b backend frontend
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEV_SCRIPT="$SCRIPT_DIR/scripts/dev.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: ./start [-b] [service...]
+  -b          Rebuild images before starting (passes through to dev.sh up)
+  -h, --help  Show this help
+EOF
+}
+
+build=false
+args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -b) build=true ;;
+    -h|--help) usage; exit 0 ;;
+    *) args+=("$1") ;;
+  esac
+  shift
+done
+
+cmd=( "$DEV_SCRIPT" up )
+if ! $build; then
+  cmd+=(--no-build)
+fi
+cmd+=( "${args[@]}" )
+
+exec "${cmd[@]}"
