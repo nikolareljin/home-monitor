@@ -27,7 +27,8 @@ Home Monitor was designed to grow beyond Allthings Wave radon monitors. This gui
 
 ## Automation & Home Assistant
 
-- Current implementation publishes radon and temperature sensors.
+- Current implementation publishes radon and temperature sensors and a recommendation sensor + event/notification for the latest AI guidance.
+- Use MQTT ingestion for Zigbee (via Zigbee2MQTT) and Matter bridges; map payload keys to metrics and let Home Monitor persist readings automatically.
 - Future enhancements: trigger custom events, create scripts/automations directly via HA API, map recommendations to `input_boolean` or `script` entities.
 - Consider bi-directional updates (e.g., Home Assistant triggers data pulls).
 

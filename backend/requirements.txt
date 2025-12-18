@@ -5,3 +5,4 @@ django-cors-headers>=4.3,<5
 psycopg2-binary>=2.9,<3
 python-dotenv>=1.0,<2
 whitenoise>=6.6,<7
+paho-mqtt>=1.6,<2

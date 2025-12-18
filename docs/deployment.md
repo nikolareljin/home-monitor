@@ -70,6 +70,29 @@ docker compose logs -f backend
   ```
 - **Static assets:** Collected automatically in entrypoint for future static serving.
 
+## Home Assistant integration
+
+When `HOME_ASSISTANT_BASE_URL` and `HOME_ASSISTANT_TOKEN` are set, the backend publishes:
+
+- Sensor states: `sensor.radon_<slug>`, `sensor.temperature_<slug>`, `sensor.home_monitor_recommendation_<slug>` (latest Ollama suggestion + context).
+- Event: `home_monitor_recommendation` with device, message, confidence, weather/environment context.
+- Persistent notification: titled `Home Monitor: <device>` for the top recommendation.
+
+Use these in HA automations (e.g., notify when radon is forecast to spike, humidity drops, or upcoming weather + Nest heat might dry a room).
+
+## MQTT / Zigbee / Matter ingestion
+
+- Configure `.env`: `MQTT_BROKER_URL`, `MQTT_BROKER_PORT` (default 1883), optional `MQTT_USERNAME` / `MQTT_PASSWORD`, `MQTT_TOPICS` (default `home-monitor/#,zigbee2mqtt/#,matter/#`).
+- Run the ingestor:
+  ```bash
+  docker compose run --rm backend python manage.py mqtt_ingest
+  ```
+- Supported topics:
+  - Generic: `home-monitor/<device_slug>/<metric>` payload `{"value": 42, "unit": "pCi/L"}`.
+  - Zigbee2MQTT: `zigbee2mqtt/<device_slug>` with numeric keys (temperature, humidity, etc.).
+  - Matter bridge: `matter/<device_slug>/<metric>` payload `{"value": 21.5, "unit": "C"}`.
+- Ingested readings populate sensors, feed recommendations, and continue into Home Assistant publishing.
+
 ## Scaling Considerations
 
 - **Backend:** Gunicorn default worker count is 1; override via compose (`command`) or env (`WEB_CONCURRENCY`).

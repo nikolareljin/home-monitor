@@ -76,7 +76,28 @@ The helpers rely on the `scripts/script-helpers` git submodule for logging and D
 
 ## Home Assistant integration
 
-Provide `HOME_ASSISTANT_BASE_URL` and `HOME_ASSISTANT_TOKEN`. When enabled, the API publishes radon and temperature readings to matching HA sensor IDs (`sensor.radon_<slug>` etc.), so you can display or automate inside Home Assistant.
+Provide `HOME_ASSISTANT_BASE_URL` and `HOME_ASSISTANT_TOKEN`. When enabled, the API:
+
+- Publishes sensor states: `sensor.radon_<slug>`, `sensor.temperature_<slug>`, and `sensor.home_monitor_recommendation_<slug>` (latest Ollama-driven suggestion with context).
+- Fires an event: `home_monitor_recommendation` with device, message, confidence, weather/environment context.
+- Creates a persistent notification (title `Home Monitor: <device>`) for the top recommendation.
+
+Use these entities/events in HA automations, dashboards, and notifications (e.g., “Radon went up in bedroom; forecast may spike—open window”, “Humidity low—add water to humidifier”).
+
+## MQTT / Zigbee / Matter ingestion
+
+- Configure broker access in `.env`: `MQTT_BROKER_URL`, `MQTT_BROKER_PORT`, and optional `MQTT_USERNAME` / `MQTT_PASSWORD`.
+- Default subscriptions: `home-monitor/#`, `zigbee2mqtt/#`, `matter/#` (override via `MQTT_TOPICS`).
+- Run the ingestor to persist readings from MQTT into Home Monitor:
+  ```bash
+  docker compose run --rm backend python manage.py mqtt_ingest
+  ```
+- Topic formats:
+  - Generic: `home-monitor/<device_slug>/<metric>` with payload `{"value": 42, "unit": "pCi/L"}`.
+  - Zigbee2MQTT: `zigbee2mqtt/<device_slug>` with payload containing numeric keys (temperature, humidity, etc.).
+  - Matter bridge: `matter/<device_slug>/<metric>` with payload `{"value": 21.5, "unit": "C"}`.
+
+Readings are stored as `SensorDevice` / `SensorReading` records and flow through the existing Ollama-driven recommendation engine and Home Assistant publishing.
 
 ## Development notes
 

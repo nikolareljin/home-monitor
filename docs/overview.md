@@ -38,7 +38,8 @@ Weather API   Allthings Wave   Home Assistant
 1. **Sensor Sync** – Backend polls Allthings Wave for radon/ambient readings and stores them in PostgreSQL.
 2. **Weather Fetch** – Backend queries a configured weather provider (OpenWeatherMap by default).
 3. **AI Analysis** – Recommendation engine fuses heuristics with an Ollama model prompt to suggest actions.
-4. **Home Assistant (optional)** – Updated readings are pushed to Home Assistant sensor entities.
+4. **Home Assistant (optional)** – Updated readings and recommendations are pushed to Home Assistant sensor entities, events, and notifications.
+5. **MQTT / Zigbee / Matter (optional)** – Ingest readings from MQTT brokers (including Zigbee2MQTT and Matter bridges).
 5. **Dashboard** – React UI displays latest metrics, environment summaries, and AI recommendations.
 
 ## Key Components

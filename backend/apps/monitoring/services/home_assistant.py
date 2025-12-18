@@ -6,7 +6,7 @@ import requests
 
 
 class HomeAssistantClient:
-    """Push updates to Home Assistant sensor entities."""
+    """Push updates to Home Assistant entities and events."""
 
     def __init__(
         self,
@@ -39,6 +39,18 @@ class HomeAssistantClient:
         response = self.session.post(
             f"{self.base_url}/api/events/{event_type}",
             json=data or {},
+            timeout=self.timeout,
+            headers=self.headers,
+        )
+        response.raise_for_status()
+
+    def create_notification(self, title: str, message: str, notification_id: Optional[str] = None) -> None:
+        payload: Dict[str, Any] = {"title": title, "message": message}
+        if notification_id:
+            payload["notification_id"] = notification_id
+        response = self.session.post(
+            f"{self.base_url}/api/services/persistent_notification/create",
+            json=payload,
             timeout=self.timeout,
             headers=self.headers,
         )

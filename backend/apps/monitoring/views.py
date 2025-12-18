@@ -252,6 +252,43 @@ class SummaryView(APIView):
                             "friendly_name": f"{device_obj.name} Temperature",
                         },
                     )
+                if recommendations_payload:
+                    top_rec = recommendations_payload[0]
+                    recommendation_entity = f"sensor.home_monitor_recommendation_{device_obj.slug}"
+                    rec_attrs = {
+                        "category": top_rec.get("category"),
+                        "confidence": top_rec.get("confidence"),
+                        "device": device_obj.name,
+                        "context": top_rec.get("context") or {},
+                    }
+                    if weather_payload:
+                        rec_attrs["weather"] = weather_payload
+                    if environment_data:
+                        rec_attrs["environment"] = environment_data
+                    ha_client.publish_sensor_state(
+                        recommendation_entity,
+                        top_rec.get("message", ""),
+                        rec_attrs,
+                    )
+                    ha_client.trigger_event(
+                        "home_monitor_recommendation",
+                        {
+                            "device_slug": device_obj.slug,
+                            "device_name": device_obj.name,
+                            "category": top_rec.get("category"),
+                            "message": top_rec.get("message"),
+                            "confidence": top_rec.get("confidence"),
+                            "context": top_rec.get("context") or {},
+                            "weather": weather_payload,
+                            "environment": environment_data,
+                            "radon": radon_data,
+                        },
+                    )
+                    ha_client.create_notification(
+                        title=f"Home Monitor: {device_obj.name}",
+                        message=top_rec.get("message", "New recommendation available"),
+                        notification_id=f"home_monitor_{device_obj.slug}",
+                    )
             except Exception as exc:  # pragma: no cover
                 metadata.setdefault('home_assistant_errors', []).append(str(exc))
 

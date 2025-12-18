@@ -38,7 +38,8 @@ Located in `apps/monitoring/services/`:
 - `WeatherClient` – Fetch current conditions by coordinates or city.
 - `OllamaClient` – Interact with local Ollama models (`generate`, `list_models`).
 - `RecommendationEngine` – Combine heuristics and LLM prompts to produce actionable guidance.
-- `HomeAssistantClient` – Publish sensor state and trigger events inside Home Assistant.
+- `HomeAssistantClient` – Publish sensor state, trigger events, and create notifications inside Home Assistant.
+- `MqttListener` – Subscribe to MQTT topics (home-monitor, Zigbee2MQTT, Matter bridges) and persist readings.
 - `SensorConnector` – Abstract base class for future sensors (Govee, EcoQube, etc.).
 
 ## Views & API Endpoints
@@ -59,8 +60,18 @@ Routes defined in `apps/monitoring/urls.py`:
 2. Store readings in DB via `_record_reading` helper.
 3. Fetch weather data using coordinates or city if configured.
 4. Generate recommendations via `RecommendationEngine` (heuristics + Ollama).
-5. Store recommendations and push updates to Home Assistant sensors (if configured).
+5. Store recommendations and push updates to Home Assistant: radon/temperature sensors plus `sensor.home_monitor_recommendation_<slug>`, HA event `home_monitor_recommendation`, and a persistent notification with the top Ollama-driven suggestion (if configured).
 6. Serialize combined payload for the frontend.
+
+### MQTT / Zigbee / Matter ingestion
+
+- Configure broker in `.env` (`MQTT_BROKER_URL`, `MQTT_BROKER_PORT`, credentials, `MQTT_TOPICS`).
+- Run ingestion loop: `python manage.py mqtt_ingest` (or via Docker Compose).
+- Topic support:
+  - Generic: `home-monitor/<device_slug>/<metric>` payload `{"value": 42, "unit": "pCi/L"}`.
+  - Zigbee2MQTT: `zigbee2mqtt/<device_slug>` payload with numeric keys (temperature, humidity, etc.).
+  - Matter bridge: `matter/<device_slug>/<metric>` payload `{"value": 21.5, "unit": "C"}`.
+- Ingested readings populate `SensorDevice`/`SensorReading` and feed the recommendation/HA pipeline.
 
 ### Error Handling
 

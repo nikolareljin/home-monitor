@@ -141,3 +141,10 @@ HOME_ASSISTANT_BASE_URL = os.environ.get("HOME_ASSISTANT_BASE_URL", "http://home
 HOME_ASSISTANT_TOKEN = os.environ.get("HOME_ASSISTANT_TOKEN", "")
 
 RECOMMENDATION_WINDOW_HOURS = int(os.environ.get("RECOMMENDATION_WINDOW_HOURS", "6"))
+
+# MQTT / IoT ingestion
+MQTT_BROKER_URL = os.environ.get("MQTT_BROKER_URL", "")
+MQTT_BROKER_PORT = int(os.environ.get("MQTT_BROKER_PORT", "1883"))
+MQTT_USERNAME = os.environ.get("MQTT_USERNAME", "")
+MQTT_PASSWORD = os.environ.get("MQTT_PASSWORD", "")
+MQTT_TOPICS = [topic.strip() for topic in os.environ.get("MQTT_TOPICS", "home-monitor/#,zigbee2mqtt/#,matter/#").split(",") if topic.strip()]
