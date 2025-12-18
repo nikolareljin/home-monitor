@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2025-12-17
 
 - Added script-helpers git submodule to standardize bash helpers.
 - Introduced `./scripts/dev.sh` host helper (plus `./dev` symlink) to run, build, inspect, and shell into services.
