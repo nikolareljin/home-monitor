@@ -10,6 +10,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_HELPERS_DIR="${SCRIPT_HELPERS_DIR:-$SCRIPT_DIR/script-helpers}"
 
+# Fast-fail with setup guidance if the helper library is missing
+if [[ ! -r "$SCRIPT_HELPERS_DIR/helpers.sh" ]]; then
+  cat <<'EOF'
+The script-helpers library is not present. Fetch it before running host helpers:
+  1) Recommended: ./update
+  2) Manual: git submodule update --init --recursive
+If you just pulled the repo, run ./update to sync submodules, then re-run this command.
+EOF
+  exit 1
+fi
+
 # shellcheck source=/dev/null
 source "$SCRIPT_HELPERS_DIR/helpers.sh"
 shlib_import logging docker env browser help
