@@ -11,4 +11,6 @@ This directory captures architecture, configuration, and operational guidance fo
 - [Deployment Guide](deployment.md) – Docker Compose, host helper scripts (`./start`, `./stop`, `./dev`), production hardening, and operations.
 - [Extensibility & Roadmap](extensibility.md) – Adding sensors, Home Assistant automations, and future ideas.
 
+Run `./update` after pulling to sync the `scripts/script-helpers` submodule (and any future helper dependencies) so the host scripts stay in lockstep.
+
 > Keep the docs current when adding new integrations or changing the deployment topology.

@@ -24,9 +24,9 @@ scripts/    # Host helper scripts + script-helpers submodule
 
 ## Getting started
 
-0. **Pull helper submodule**
+0. **Fetch helper dependencies** – initialize/update `scripts/script-helpers` (and any future helper modules):
    ```bash
-   git submodule update --init --recursive
+   ./update
    ```
 
 1. **Configure environment variables**
@@ -55,6 +55,7 @@ scripts/    # Host helper scripts + script-helpers submodule
 - `./scripts/dev.sh logs [service]` – tail logs for all services or a single one.
 - `./scripts/dev.sh test-backend [args...]` – run Django tests inside the backend container.
 - `./scripts/dev.sh shell [service] [shell]` – open an interactive shell in a service (defaults to `backend` with `bash`).
+- `./update` – sync and update git submodules (currently `scripts/script-helpers`; safe to re-run after pulling).
 
 The helpers rely on the `scripts/script-helpers` git submodule for logging and Docker utilities. Ensure the submodule is initialized before running the scripts.
 

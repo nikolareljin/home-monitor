@@ -20,6 +20,10 @@ Home Monitor is packaged as a Docker Compose stack that includes PostgreSQL, the
    - API keys (`ALLTHINGS_WAVE_API_KEY`, `WEATHER_API_KEY`)
    - `OLLAMA_MODEL` (ensure it is pulled locally, e.g., `ollama pull llama2`)
    - Home Assistant token if integration is desired
+3. Sync helper dependencies (git submodules for host scripts):
+   ```bash
+   ./update
+   ```
 
 ## Build & Run
 
