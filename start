@@ -13,17 +13,20 @@ DEV_SCRIPT="$SCRIPT_DIR/scripts/dev.sh"
 
 usage() {
   cat <<'EOF'
-Usage: ./start [-b] [service...]
+Usage: ./start [-b] [-s] [service...]
   -b          Rebuild images before starting (passes through to dev.sh up)
+  -s          Prompt for Django superuser username/password and create/update it in the backend container after startup
   -h, --help  Show this help
 EOF
 }
 
 build=false
+create_superuser=false
 args=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -b) build=true ;;
+    -s) create_superuser=true ;;
     -h|--help) usage; exit 0 ;;
     *) args+=("$1") ;;
   esac
@@ -36,4 +39,54 @@ if ! $build; then
 fi
 cmd+=( "${args[@]}" )
 
-exec "${cmd[@]}"
+create_django_superuser() {
+  local username password
+  read -rp "Enter Django superuser username: " username
+  if [[ -z "$username" ]]; then
+    echo "Username cannot be empty." >&2
+    return 1
+  fi
+  read -srp "Enter Django superuser password: " password
+  echo
+  if [[ -z "$password" ]]; then
+    echo "Password cannot be empty." >&2
+    return 1
+  fi
+
+  local backend_cid
+  backend_cid=$(docker compose ps -q backend 2>/dev/null | head -n1)
+  if [[ -z "$backend_cid" ]]; then
+    echo "Backend container is not running; cannot create superuser." >&2
+    return 1
+  fi
+
+  echo "Creating/updating Django superuser '${username}' in backend container..."
+  DJANGO_SUPERUSER_USERNAME="$username" \
+  DJANGO_SUPERUSER_PASSWORD="$password" \
+  docker compose exec -T backend env DJANGO_SUPERUSER_USERNAME="$username" DJANGO_SUPERUSER_PASSWORD="$password" python manage.py shell <<'PY'
+import os
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+username = os.environ["DJANGO_SUPERUSER_USERNAME"]
+password = os.environ["DJANGO_SUPERUSER_PASSWORD"]
+email = os.environ.get("DJANGO_SUPERUSER_EMAIL") or f"{username}@example.com"
+
+user, created = User.objects.get_or_create(
+    username=username,
+    defaults={"email": email, "is_staff": True, "is_superuser": True},
+)
+user.is_staff = True
+user.is_superuser = True
+user.email = email
+user.set_password(password)
+user.save()
+print(f"Superuser {'created' if created else 'updated'}: {username}")
+PY
+}
+
+"${cmd[@]}"
+
+if $create_superuser; then
+  create_django_superuser
+fi

@@ -13,6 +13,7 @@ export function useSummary() {
 
   useEffect(() => {
     async function initialise() {
+      setLoading(true);
       try {
         const [deviceList, modelList] = await Promise.all([
           fetchDevices(),
@@ -29,9 +30,13 @@ export function useSummary() {
         }
         if (deviceList.length) {
           setSelectedDevice(deviceList[0]);
+        } else {
+          setError(new Error('No devices available yet. Add a device to begin monitoring.'));
         }
       } catch (err) {
         setError(err);
+      } finally {
+        setLoading(false);
       }
     }
     initialise();

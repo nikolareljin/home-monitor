@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# SCRIPT: status
+# DESCRIPTION: Show docker/compose status and handy links for exposed services.
+# USAGE: ./status
+# NOTES: Uses script-helpers for logging + docker utilities.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_HELPERS_DIR="${SCRIPT_HELPERS_DIR:-$SCRIPT_DIR/scripts/script-helpers}"
+
+# shellcheck source=/dev/null
+source "$SCRIPT_HELPERS_DIR/helpers.sh"
+shlib_import logging docker
+
+ensure_prereqs() {
+  if ! check_docker; then
+    exit 1
+  fi
+  check_project_root
+}
+
+print_service_links() {
+  local config_json
+  if ! config_json=$(docker_compose config --format json 2>/dev/null); then
+    log_warn "Could not read compose config to extract service links."
+    return
+  fi
+
+  local links
+  links=$(
+    printf '%s' "$config_json" | python3 - <<'PY' 2>/dev/null
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+
+services = data.get("services", {})
+entries = []
+for name, svc in services.items():
+    for port in svc.get("ports", []):
+        published = port.get("published")
+        protocol = port.get("protocol", "tcp")
+        if not published or protocol != "tcp":
+            continue
+        scheme = "http"
+        entries.append((name, f"{scheme}://localhost:{published}"))
+
+if not entries:
+    sys.exit(0)
+
+for name, url in sorted(entries):
+    print(f"- {name}: {url}")
+PY
+  )
+  if [[ -n "$links" ]]; then
+    log_info "Service links (published ports):"
+    echo "$links"
+  else
+    log_warn "No published TCP ports found in docker-compose.yml."
+  fi
+}
+
+main() {
+  ensure_prereqs
+  docker_status
+  echo
+  print_service_links
+}
+
+main "$@"
