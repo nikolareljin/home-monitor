@@ -8,7 +8,10 @@ cd "$ROOT_DIR"
 echo "Synchronizing submodule URLs..."
 git submodule sync --recursive
 
-echo "Updating submodules..."
-git submodule update --init --recursive
+echo "Updating submodules (fetching latest remote commits)..."
+if ! git submodule update --init --remote --recursive; then
+  echo "Remote submodule update failed (likely no network or credentials). Falling back to pinned revisions..."
+  git submodule update --init --recursive
+fi
 
 echo "Submodules are up to date."

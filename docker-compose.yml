@@ -55,7 +55,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:${API_PORT:-8000}/api}
         VITE_DEFAULT_OLLAMA_MODEL: ${VITE_DEFAULT_OLLAMA_MODEL}
     restart: unless-stopped
     depends_on:
