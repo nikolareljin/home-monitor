@@ -47,7 +47,7 @@ services:
       - media_data:/app/media
       - static_data:/app/staticfiles
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     networks:
       - monitor_net
 
@@ -61,7 +61,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:80"
+      - "${FRONTEND_PORT:-3000}:80"
     networks:
       - monitor_net
 
