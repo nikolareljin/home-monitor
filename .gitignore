@@ -34,3 +34,5 @@ yarn-error.log*
 # Docker artifacts
 /data/
 *.log
+
+/ignore/
