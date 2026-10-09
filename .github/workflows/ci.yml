@@ -20,6 +20,9 @@ jobs:
       working_directory: backend
       # sqlite: settings.py uses it when POSTGRES_DB is not set.
       db_image: ""
+      # Explicit: django.yml passes an empty install_command on, and the
+      # script reads an empty one as "skip the install".
+      install_command: "pip install --no-input -r requirements.txt"
 
   frontend:
     uses: nikolareljin/ci-helpers/.github/workflows/react.yml@production
