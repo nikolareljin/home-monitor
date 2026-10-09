@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Service shim. Use ./dev status -- kept: systemd units and scripts call ./status.
+exec "$(dirname "$0")/dev" "status" "$@"

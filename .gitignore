@@ -10,11 +10,16 @@ __pycache__/
 /staticfiles
 /media
 *.sqlite3
+# Python environments (./dev preflight, local runs)
+.venv/
+venv/
 /db.sqlite3
 
 # Environment & secrets
 .env
 *.env
+# Model names from the fleet model registry: tracked, not a secret.
+!ai-models.env
 
 # Node / frontend
 node_modules/

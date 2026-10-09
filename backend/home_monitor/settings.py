@@ -9,6 +9,9 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 load_dotenv(BASE_DIR.parent / ".env")
+# The model names (fleet model registry). Read last: a value already set, by
+# the environment or a .env above, wins. Under compose the file is an env_file.
+load_dotenv(BASE_DIR.parent / "ai-models.env")
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "changeme-in-production")
 DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
@@ -128,8 +131,10 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://ollama:11434")
-DEFAULT_OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama2")
+# The machine's own Ollama; compose points the container at the host instead.
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+# No default here: ai-models.env names it. Empty means none was configured.
+DEFAULT_OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "")
 
 WEATHER_API_BASE_URL = os.environ.get("WEATHER_API_BASE_URL", "https://api.openweathermap.org/data/2.5")
 WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY", "")

@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   db:
     image: postgres:15
@@ -18,11 +16,15 @@ services:
       timeout: 5s
       retries: 5
 
+  # The fallback, off by default: OLLAMA_RUNTIME=container in .env makes
+  # ./dev start run it (compose profile "ollama") and point the backend at it.
+  # The default is the machine's one Ollama, on the host.
   ollama:
     image: ollama/ollama:latest
+    profiles: ["ollama"]
     restart: unless-stopped
     ports:
-      - "${OLLAMA_HOST_PORT:-11434}:11434"
+      - "127.0.0.1:${OLLAMA_CONTAINER_PORT:-11435}:11434"
     volumes:
       - ollama_data:/root/.ollama
     networks:
@@ -35,19 +37,25 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      ollama:
-        condition: service_started
+    # ai-models.env names the model (fleet model registry); .env is read after
+    # it, so a model set there wins.
     env_file:
+      - ./ai-models.env
       - ./.env
     environment:
       DJANGO_SETTINGS_MODULE: home_monitor.settings
       POSTGRES_HOST: db
-      OLLAMA_BASE_URL: http://ollama:11434
+      # The machine's one Ollama, on the host; with OLLAMA_RUNTIME=container,
+      # ./dev start sets this to http://ollama:11434 (the fallback service).
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL_DOCKER:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - media_data:/app/media
       - static_data:/app/staticfiles
     ports:
-      - "8000:8000"
+      # API_PORT: ./dev start offers another when 8000 is taken.
+      - "${API_PORT:-8000}:8000"
     networks:
       - monitor_net
 
@@ -55,13 +63,14 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
-        VITE_DEFAULT_OLLAMA_MODEL: ${VITE_DEFAULT_OLLAMA_MODEL}
+        # /api: nginx in the frontend container proxies it to the backend.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "8080:80"
+      # FRONTEND_PORT: ./dev start offers another when 8080 is taken.
+      - "${FRONTEND_PORT:-8080}:80"
     networks:
       - monitor_net
 
@@ -71,6 +80,11 @@ networks:
 
 volumes:
   postgres_data:
+  # Models of the fallback ollama container. External, with a fixed name:
+  # `docker compose down -v` (./dev stop -v) removes every volume it declares,
+  # and must not remove gigabytes of models. ./dev start creates it.
   ollama_data:
+    external: true
+    name: home-monitor_ollama_data
   media_data:
   static_data:

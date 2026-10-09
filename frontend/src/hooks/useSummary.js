@@ -3,7 +3,6 @@ import { fetchDevices, fetchSummary, fetchModels } from '../api/client';
 
 export function useSummary() {
   const [loading, setLoading] = useState(true);
-  const defaultModelName = import.meta.env.VITE_DEFAULT_OLLAMA_MODEL || null;
   const [error, setError] = useState(null);
   const [summary, setSummary] = useState(null);
   const [devices, setDevices] = useState([]);
@@ -21,11 +20,11 @@ export function useSummary() {
         setDevices(deviceList);
         const availableModels = modelList.models || [];
         setModels(availableModels);
-        if (availableModels.length) {
-          const preferred = defaultModelName
-            ? availableModels.find((model) => model.name === defaultModelName)
-            : null;
-          setSelectedModel(preferred || availableModels[0]);
+        // The backend names the project's model (ai-models.env). Pick nothing
+        // else for the user: a shared Ollama lists every model on the machine.
+        const preferred = availableModels.find((model) => model.name === modelList.default);
+        if (preferred) {
+          setSelectedModel(preferred);
         }
         if (deviceList.length) {
           setSelectedDevice(deviceList[0]);

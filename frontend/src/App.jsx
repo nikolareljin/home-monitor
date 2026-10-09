@@ -49,6 +49,8 @@ export default function App() {
                 minWidth: '220px',
               }}
             >
+              {/* No model chosen: the backend uses the project's (ai-models.env). */}
+              <option value="">Project default</option>
               {models.map((model) => (
                 <option key={model.name} value={model.name}>
                   {model.name}

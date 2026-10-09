@@ -54,7 +54,7 @@ Weather API   Allthings Wave   Home Assistant
 |-------------------------|------------------------|-------|
 | Radon Monitoring        | Allthings Wave         | API-based polling with latest radon + environment snapshot.
 | Outdoor Weather         | OpenWeatherMap         | Configurable by lat/lon or city. Requires API key.
-| AI Recommendations      | Ollama (local models)  | Default model `llama2`, configurable via env.
+| AI Recommendations      | Ollama (local models)  | Model from `ai-models.env` (fleet model registry); `.env` may override.
 | Home Automation (optional) | Home Assistant      | REST token used to publish sensor states.
 
 ## Future Goals

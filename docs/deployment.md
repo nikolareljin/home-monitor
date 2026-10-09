@@ -18,7 +18,7 @@ Home Monitor is packaged as a Docker Compose stack that includes PostgreSQL, the
    - Strong `DJANGO_SECRET_KEY`
    - `POSTGRES_*` credentials
    - API keys (`ALLTHINGS_WAVE_API_KEY`, `WEATHER_API_KEY`)
-   - `OLLAMA_MODEL` (ensure it is pulled locally, e.g., `ollama pull llama2`)
+   - `OLLAMA_BASE_URL_DOCKER` only if the backend should reach Ollama somewhere other than the host (`http://host.docker.internal:11434`); the model comes from `ai-models.env`
    - Home Assistant token if integration is desired
 
 ## Build & Run
@@ -27,14 +27,15 @@ Home Monitor is packaged as a Docker Compose stack that includes PostgreSQL, the
 docker compose build --pull
 docker compose up -d
 ```
-> For local development you can also use `./start` (uses `./dev`/`./scripts/dev.sh` under the hood; requires the `scripts/script-helpers` submodule).
-> If port `11434` is occupied on the host, set `OLLAMA_HOST_PORT` in `.env` (e.g., `OLLAMA_HOST_PORT=11435`) before starting.
+> For local development use `./dev start` (or `./start`); it checks the machine's Ollama first and requires the `scripts/script-helpers` submodule. `./dev --help` lists every verb.
+> By default Ollama runs on the host: the backend container reaches it through `host.docker.internal`, and an Ollama that listens on 127.0.0.1 only needs a forwarder onto the Docker bridge, which `./dev start` checks for. The fallback is the `ollama` service in compose (profile `ollama`): `OLLAMA_RUNTIME=container` in `.env` makes `./dev start` run it and check the model in it.
 
 Services exposed:
 
 - Backend API: http://localhost:${API_PORT:-8000} (health: `/api/health/`)
 - Frontend UI: http://localhost:${FRONTEND_PORT:-8080}
-- Ollama API: http://localhost:${OLLAMA_HOST_PORT:-11434} (local only by default)
+
+`API_PORT` and `FRONTEND_PORT` are settings in `.env`. `./dev start` checks both first: a taken port gets a replacement on a terminal (saved to `.env`), and stops the start without one. The frontend proxies `/api/` to the backend, so the dashboard does not depend on `API_PORT`.
 - PostgreSQL: on internal Docker network (`db:5432`)
 
 Logs:
@@ -46,7 +47,7 @@ docker compose logs -f backend
 ## Data Persistence
 
 - Postgres data stored in volume `postgres_data`
-- Ollama models stored in volume `ollama_data`
+- Ollama models live with the host's Ollama, shared with other projects; the fallback container keeps its own in the external volume `home-monitor_ollama_data`, which `./dev stop -v` does not remove
 - Django media/static in volumes `media_data`, `static_data`
 
 ## Health Checks
@@ -94,6 +95,6 @@ docker compose logs -f backend
 ## Troubleshooting
 
 - Backend fails to start: check `.env` values, DB connectivity, and migrations.
-- Ollama errors in summary response: ensure model is pulled and service is healthy (`docker compose logs ollama`).
+- Ollama errors in summary response: ensure the host's Ollama is running (`ollama list`) and has the model in `ai-models.env`; `./dev start` checks both.
 - Frontend blank: confirm Nginx container is serving built assets (`docker compose logs frontend`).
 - Home Assistant sync errors: verify base URL is reachable from backend container and token has correct scope.
