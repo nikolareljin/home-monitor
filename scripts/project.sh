@@ -116,6 +116,17 @@ hm_choose_ports() {
   done
 }
 
+# An .env copied from the old example names the API by host port
+# (http://localhost:8000/api). The frontend then skips its /api proxy and
+# breaks when API_PORT moves; it is read at build time, so -b applies a fix.
+hm_warn_api_url() {
+  local api_url="${VITE_API_BASE_URL:-}"
+  [[ -n "$api_url" ]] || api_url="$(ollama_models_file_get "$DEV_REPO_ROOT/.env" VITE_API_BASE_URL 2>/dev/null)" || api_url=""
+  if [[ -n "$api_url" && "$api_url" != "/api" ]]; then
+    log_warn "VITE_API_BASE_URL=$api_url bypasses the frontend's /api proxy, and breaks when API_PORT changes. Set it to /api in .env, then ./dev start -b."
+  fi
+}
+
 # hm_up <detach:true|false> [-b|--build] [service...]
 hm_up() {
   local detach="$1" build=false rc=0 args=() extra=()
@@ -128,12 +139,15 @@ hm_up() {
     shift
   done
   hm_ensure_prereqs
+  # Ports first: cheap, and a taken port found after a model download of
+  # several GB would waste it.
+  hm_choose_ports || exit 1
+  hm_warn_api_url
   hm_check_ollama || rc=$?
   if [[ "$rc" -ne 0 ]]; then
     log_error "Not starting: the Ollama check failed (exit $rc); the message above says why. HOME_MONITOR_SKIP_OLLAMA=1 starts without it."
     exit "$rc"
   fi
-  hm_choose_ports || exit 1
   $build && args+=(--build)
   $detach && args+=(-d)
   log_info "Starting docker compose stack..."

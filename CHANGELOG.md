@@ -10,6 +10,7 @@
 - Host ports `API_PORT` (8000) and `FRONTEND_PORT` (8080) are settings, checked by `./dev start` before compose runs: a taken one is offered a replacement on a terminal (saved to `.env`) and stops the start without one. A port this stack already holds is not "taken".
 - The frontend's nginx proxies `/api/` to the backend, and the default `VITE_API_BASE_URL` is `/api`, so the dashboard works whatever `API_PORT` is. The image's old default, `http://backend:8000/api`, never resolved in a browser.
 - `gunicorn` added to `backend/requirements.txt`: the image's `CMD` runs it, it was never installed, and the backend container restarted forever.
+- `./dev start` checks the ports before Ollama (a taken port must not cost a model download), and warns when an old `.env` sets `VITE_API_BASE_URL` to a host-port URL, which bypasses the `/api` proxy.
 - `./dev start` opens the browser only from a terminal; scripts and tests never do. `HOME_MONITOR_NO_BROWSER=1` turns it off.
 - CI: `.github/workflows/ci.yml` runs ci-helpers `django.yml` (backend, sqlite), `react.yml` (frontend lint and build) and `shell.yml` (shellcheck, `tests/check_ollama_test.sh`, `tests/dev_verbs_test.sh`), all `@production`.
 - `backend/apps/monitoring/migrations/0002_...`: the index rename the models already declared; `makemigrations --check` failed without it.

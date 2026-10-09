@@ -56,6 +56,20 @@ HOME_MONITOR_SKIP_OLLAMA=1 HOME_MONITOR_NO_BROWSER=1 PATH="$tmp/bin:$PATH" "$roo
 kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null
 check "a taken port stops the start, naming the setting, and nothing starts" "1:1:0" "$taken_rc:$(grep -c "API_PORT=N in .env" "$tmp/out"):$(grep -c 'compose .*up' "$tmp/log")"
 
+# An old .env value that bypasses the /api proxy is named.
+check "an API URL by host port is warned about" "1" "$(VITE_API_BASE_URL=http://localhost:8000/api HOME_MONITOR_SKIP_OLLAMA=1 HOME_MONITOR_NO_BROWSER=1 PATH="$tmp/bin:$PATH" "$root/dev" start 2>&1 </dev/null | grep -c 'bypasses the frontend')"
+check "and /api is not" "0" "$(VITE_API_BASE_URL=/api HOME_MONITOR_SKIP_OLLAMA=1 HOME_MONITOR_NO_BROWSER=1 PATH="$tmp/bin:$PATH" "$root/dev" start 2>&1 </dev/null | grep -c 'bypasses the frontend')"
+
+# Ports are checked before Ollama: a taken port must not cost a model download.
+python3 -c 'import socket,time,sys
+s=socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(("127.0.0.1", int(sys.argv[1]))); s.listen(); time.sleep(30)' "$FRONTEND_PORT" &
+holder=$!
+for _ in 1 2 3 4 5 6 7 8 9 10; do (exec 3<>"/dev/tcp/127.0.0.1/$FRONTEND_PORT") 2>/dev/null && break; sleep 0.2; done
+order="$(OLLAMA_BASE_URL_DOCKER=http://ollama:11434 HOME_MONITOR_NO_BROWSER=1 PATH="$tmp/bin:$PATH" "$root/dev" start </dev/null 2>&1 | grep -oE 'FRONTEND_PORT=N|no longer runs' | head -1)"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null
+check "a taken port stops the start before the Ollama check" "FRONTEND_PORT=N" "$order"
+
 deploy_rc=0; "$root/dev" deploy >/dev/null 2>&1 || deploy_rc=$?
 check "deploy is not applicable (exit 3)" "3" "$deploy_rc"
 
