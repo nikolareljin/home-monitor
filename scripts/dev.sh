@@ -12,7 +12,7 @@ SCRIPT_HELPERS_DIR="${SCRIPT_HELPERS_DIR:-$SCRIPT_DIR/script-helpers}"
 
 # shellcheck source=/dev/null
 source "$SCRIPT_HELPERS_DIR/helpers.sh"
-shlib_import logging docker env browser help
+shlib_import logging docker env browser help ollama_endpoint
 
 init_include
 
@@ -56,8 +56,61 @@ ensure_prereqs() {
   check_project_root
 }
 
+# Checks the machine's Ollama before the stack starts: it has the model
+# ai-models.env names (a value in .env wins), and the backend container can
+# reach it. A missing model is listed with its size and pulled after a yes;
+# with no terminal the start stops and names the pull. A failed check stops
+# the start: a dashboard whose advice silently falls back to heuristics looks
+# like it works. HOME_MONITOR_SKIP_OLLAMA=1 skips it.
+check_ollama() {
+  local root url chosen default
+  if [[ "${HOME_MONITOR_SKIP_OLLAMA:-}" == "1" ]]; then
+    log_info "Skipping the Ollama check (HOME_MONITOR_SKIP_OLLAMA=1)."
+    return 0
+  fi
+  root="$(cd "$SCRIPT_DIR/.." && pwd)"
+  # The address the backend container is given (OLLAMA_BASE_URL_DOCKER in
+  # .env); the library reads host.docker.internal on the host as this machine.
+  url="${OLLAMA_BASE_URL_DOCKER:-}"
+  [[ -n "$url" ]] || url="$(ollama_models_file_get "$root/.env" OLLAMA_BASE_URL_DOCKER 2>/dev/null)" || url=""
+  url="${url:-http://host.docker.internal:11434}"
+  # The old env.example pointed at an Ollama container compose no longer starts.
+  case "$url" in
+    ollama|ollama:*|http://ollama|http://ollama[:/]*|https://ollama|https://ollama[:/]*)
+      log_error "OLLAMA_BASE_URL_DOCKER=$url names the Ollama container Home Monitor no longer runs."
+      log_error "Set it to http://host.docker.internal:11434 in .env (the machine's own Ollama), or delete the line."
+      return 9
+      ;;
+  esac
+
+  # A model in .env wins over ai-models.env. Older .env files were copied from
+  # the old example (llama2), so say which one is used.
+  chosen="${OLLAMA_MODEL:-}"
+  [[ -n "$chosen" ]] || chosen="$(ollama_models_file_get "$root/.env" OLLAMA_MODEL 2>/dev/null)" || chosen=""
+  default="$(ollama_models_file_get "$root/ai-models.env" OLLAMA_MODEL 2>/dev/null)" || default=""
+  if [[ -n "$chosen" && "$chosen" != "$default" ]]; then
+    log_warn "OLLAMA_MODEL=$chosen in .env or the environment wins over $default from ai-models.env. Remove it there to use ai-models.env."
+  fi
+
+  # Ask before pulling unless .env or the environment says otherwise (empty is
+  # no value: the library reads it as "pull unasked").
+  if [[ -z "${OLLAMA_PULL_MISSING:-}" ]] && [[ -z "$(ollama_models_file_get "$root/.env" OLLAMA_PULL_MISSING 2>/dev/null)" ]]; then
+    export OLLAMA_PULL_MISSING=ask
+  fi
+  export HM_OLLAMA_URL="$url" OLLAMA_URL_VARS=HM_OLLAMA_URL
+  ollama_project_ensure_models "$root/ai-models.env" "$root/.env" OLLAMA_MODEL || return
+  # Answering on 127.0.0.1 does not prove the container can reach it.
+  ollama_endpoint_container_reach "$url"
+}
+
 cmd_up() {
   ensure_prereqs
+  local rc=0
+  check_ollama || rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    log_error "Not starting: the Ollama check failed (exit $rc); the message above says why. HOME_MONITOR_SKIP_OLLAMA=1 starts without it."
+    exit "$rc"
+  fi
   local build=true detach=true extra=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -146,4 +199,7 @@ main() {
   esac
 }
 
-main "$@"
+# Sourced (tests), only the functions are defined.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

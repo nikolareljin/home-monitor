@@ -35,7 +35,7 @@ frontend/
 ## Key Concepts
 
 - **Device Picker** – `DeviceSidebar` lists all sensors from `/api/devices/`; selection triggers summary reload.
-- **Model Picker** – Header dropdown built from `/api/ai/models/`; defaults to `VITE_DEFAULT_OLLAMA_MODEL` if available.
+- **Model Picker** – Header dropdown built from `/api/ai/models/`; starts on the `default` it returns (the project's model), else "Project default", which lets the backend choose.
 - **Summary Hook (`useSummary`)** – Coordinates API calls, stores loading/error states, and memoizes derived values.
 - **Cards** – Present radon, indoor environment, and weather metrics in responsive grid layout.
 - **Recommendations Panel** – Displays heuristics + AI insights, highlighting backend error messages when present.
@@ -45,7 +45,6 @@ frontend/
 Handled via Vite at build time:
 
 - `VITE_API_BASE_URL` – Base URL for backend API (defaults to `/api`).
-- `VITE_DEFAULT_OLLAMA_MODEL` – Preferred LLM name to pre-select.
 
 In production Docker build, these are passed as build args (`frontend/Dockerfile`). For local development, set them in `.env` or run `npm run dev` with CLI overrides.
 

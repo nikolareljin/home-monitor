@@ -11,7 +11,7 @@ Home Monitor is a Django + React platform for aggregating and analysing air qual
 - **Home Assistant bridge** – Optionally publish readings to HA sensor entities and fire automations.
 - **Extensible connectors** – Shared `SensorConnector` abstraction for future devices (Govee, EcoQube, etc.).
 - **Modern UI** – React/Vite dashboard with device switching, model picker, and live recommendations.
-- **Docker orchestration** – Compose file spins up Postgres, Django API, React frontend, and Ollama runtime.
+- **Docker orchestration** – Compose file spins up Postgres, Django API and React frontend; the backend uses the machine's own Ollama, shared with other projects.
 
 ## Directory layout
 
@@ -41,9 +41,10 @@ scripts/    # Host helper scripts + script-helpers submodule
    ```
    - Django API: http://localhost:8000/api/summary/
    - React UI: http://localhost:8080
-   - Ollama API: http://localhost:11434
 
-3. **Access the dashboard** – Open http://localhost:8080, pick an Ollama model if multiple are available, and review the AI generated actions.
+   The start first checks the machine's own Ollama (there is no Ollama container): it must have the model `ai-models.env` names, and a container must be able to reach it. A missing model is offered for download.
+
+3. **Access the dashboard** – Open http://localhost:8080, review the AI generated actions, and pick another installed model if you want.
 
 ## Helper scripts (host)
 
@@ -58,7 +59,7 @@ scripts/    # Host helper scripts + script-helpers submodule
 
 The helpers rely on the `scripts/script-helpers` git submodule for logging and Docker utilities. Ensure the submodule is initialized before running the scripts.
 
-> If port `11434` is already used by a host Ollama instance, set `OLLAMA_HOST_PORT` in `.env` (e.g., `OLLAMA_HOST_PORT=11435`) before running `./scripts/dev.sh up`.
+> The model is the one `ai-models.env` names (generated from the fleet model registry; do not edit it). To try another on this machine, set `OLLAMA_MODEL` in `.env`. `HOME_MONITOR_SKIP_OLLAMA=1 ./scripts/dev.sh up` starts without the Ollama check.
 
 ## Django API overview
 

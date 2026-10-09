@@ -96,7 +96,9 @@ class OllamaModelListView(APIView):
                 {"name": item.get("name"), "modified_at": item.get("modified_at")}
                 for item in models
             ]
-            return Response({"models": simplified})
+            # "default" is this project's model: a shared Ollama lists every
+            # model on the machine, and the first of them is not this one.
+            return Response({"models": simplified, "default": settings.DEFAULT_OLLAMA_MODEL})
         except Exception as exc:  # pragma: no cover
             return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 

@@ -45,8 +45,8 @@ Weather data:
 
 ### Model Selection
 
-- Default model drawn from `OLLAMA_MODEL` (e.g., `llama2`).
-- Frontend model picker hits `/api/ai/models/` to list models from `ollama /api/tags`.
+- Default model drawn from `OLLAMA_MODEL`: `ai-models.env` (fleet model registry), unless `.env` sets it.
+- Frontend model picker hits `/api/ai/models/` to list models from `ollama /api/tags`; the response's `default` is the project's model, which the picker starts on.
 - Clients can override by passing `?model=name` to `/api/summary/`.
 
 ### Response Handling
@@ -69,7 +69,7 @@ If the Ollama service is down or misconfigured:
 2. **Prompt tweaks** – Modify `_build_prompt` to include occupancy schedules, HVAC capabilities, or sensor history.
 3. **Streaming / long responses** – Extend `OllamaClient.generate` to support streaming if desired.
 4. **Analytics storage** – Persist more detailed context in the `Recommendation` model for auditing.
-5. **Alternate models** – Users can `ollama pull` domain-specific models (e.g., `mistral`, `phi`) and set as default.
+5. **Alternate models** – Users can `ollama pull` domain-specific models (e.g., `mistral`, `phi`) and set `OLLAMA_MODEL` in `.env` to try them on one machine.
 6. **Multi-modal** – Future connectors could augment prompts with CO₂, VOC, or particulate matter data.
 
 ## Privacy & Safety Considerations

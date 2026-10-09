@@ -15,6 +15,8 @@ __pycache__/
 # Environment & secrets
 .env
 *.env
+# Model names from the fleet model registry: tracked, not a secret.
+!ai-models.env
 
 # Node / frontend
 node_modules/
