@@ -39,4 +39,4 @@ jobs:
       # dev.sh sources script-helpers, and the test sources dev.sh.
       submodules: "true"
       shellcheck_paths: "scripts tests start stop"
-      bats_command: "bash tests/check_ollama_test.sh"
+      bats_command: "bash tests/check_ollama_test.sh && bash tests/dev_verbs_test.sh"

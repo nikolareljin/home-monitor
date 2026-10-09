@@ -41,7 +41,8 @@ services:
       - media_data:/app/media
       - static_data:/app/staticfiles
     ports:
-      - "8000:8000"
+      # API_PORT: ./dev start offers another when 8000 is taken.
+      - "${API_PORT:-8000}:8000"
     networks:
       - monitor_net
 
@@ -49,12 +50,14 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        # /api: nginx in the frontend container proxies it to the backend.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "8080:80"
+      # FRONTEND_PORT: ./dev start offers another when 8080 is taken.
+      - "${FRONTEND_PORT:-8080}:80"
     networks:
       - monitor_net
 

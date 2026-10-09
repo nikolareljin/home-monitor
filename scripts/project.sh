@@ -7,12 +7,23 @@
 #   ./dev stop [args...]            docker compose down
 #   ./dev restart                   stop, then start
 #   ./dev status | logs [service] | build [service...]
-#   ./dev test [args...]            Django tests in the backend container, then tests/
+#   ./dev test [args...]            Django tests in the backend container, then tests/*_test.sh
 #   ./dev shell [service] [shell]   a shell in a service (default backend, bash)
 #   ./dev preflight                 what CI runs, locally
 #   ./dev deploy                    not applicable (exit 3)
 
-shlib_import docker env browser ollama_endpoint
+shlib_import docker env browser ollama_endpoint ports
+
+# The words after a shared verb, as compose arguments. cli.sh takes "backend"
+# and "frontend" as the target (DEV_TARGET), not as arguments, so put it back
+# in front. A second target word replaces the first in cli.sh, so
+# `./dev start backend frontend` reaches here as frontend alone:
+# https://github.com/nikolareljin/script-helpers/issues/160
+hm_args() {
+  HM_ARGS=()
+  [[ -z "${DEV_TARGET:-}" ]] || HM_ARGS+=("$DEV_TARGET")
+  HM_ARGS+=(${DEV_ARGS[@]+"${DEV_ARGS[@]}"})
+}
 
 # Hide the default helper error so we can print a more actionable message.
 hm_ensure_prereqs() {
@@ -80,6 +91,31 @@ hm_check_ollama() {
   ollama_endpoint_container_reach "$url"
 }
 
+# The host ports the stack publishes. A taken one is not swapped silently: on
+# a terminal the person picks another (port_choose) and it is saved to .env;
+# with no terminal the start stops and names the setting.
+hm_choose_ports() {
+  local entry var default service inner current chosen
+  # setting:default host port:compose service:port inside the container
+  for entry in API_PORT:8000:backend:8000 FRONTEND_PORT:8080:frontend:80; do
+    IFS=: read -r var default service inner <<<"$entry"
+    current="${!var:-}"
+    [[ -n "$current" ]] || current="$(ollama_models_file_get "$DEV_REPO_ROOT/.env" "$var" 2>/dev/null)" || current=""
+    current="${current:-$default}"
+    # Held by this stack already (a second ./dev start): not taken.
+    if docker_compose port "$service" "$inner" 2>/dev/null | grep -q ":${current}\$"; then
+      export "$var=$current"
+      continue
+    fi
+    chosen="$(port_choose "$current" "$var=N in .env")" || return 1
+    if [[ "$chosen" != "$current" ]]; then
+      env_set_value "$DEV_REPO_ROOT/.env" "$var" "$chosen"
+      log_info "$var=$chosen saved in .env"
+    fi
+    export "$var=$chosen"
+  done
+}
+
 # hm_up <detach:true|false> [-b|--build] [service...]
 hm_up() {
   local detach="$1" build=false rc=0 args=() extra=()
@@ -97,23 +133,30 @@ hm_up() {
     log_error "Not starting: the Ollama check failed (exit $rc); the message above says why. HOME_MONITOR_SKIP_OLLAMA=1 starts without it."
     exit "$rc"
   fi
+  hm_choose_ports || exit 1
   $build && args+=(--build)
   $detach && args+=(-d)
   log_info "Starting docker compose stack..."
   docker_compose up ${args[@]+"${args[@]}"} ${extra[@]+"${extra[@]}"}
   $detach || return 0
-  log_info "Backend API: http://localhost:${API_PORT:-8000}/api/summary/"
-  log_info "Frontend: http://localhost:${FRONTEND_PORT:-8080}"
-  open_frontend_when_ready "${FRONTEND_WAIT_TIMEOUT:-120}"
+  log_info "Backend API: http://localhost:${API_PORT}/api/summary/"
+  log_info "Frontend: http://localhost:${FRONTEND_PORT}"
+  # Only for a person at a terminal: the helper opens the URL even when the
+  # frontend never answers, and a script or test must not open a browser.
+  # HOME_MONITOR_NO_BROWSER=1 turns it off at a terminal too.
+  if [[ -t 0 && -t 1 && "${HOME_MONITOR_NO_BROWSER:-}" != "1" ]]; then
+    open_frontend_when_ready "${FRONTEND_WAIT_TIMEOUT:-120}"
+  fi
 }
 
-project_start() { hm_up true ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}; }
-project_run() { hm_up false ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}; }
+project_start() { hm_args; hm_up true ${HM_ARGS[@]+"${HM_ARGS[@]}"}; }
+project_run() { hm_args; hm_up false ${HM_ARGS[@]+"${HM_ARGS[@]}"}; }
 
 project_stop() {
   hm_ensure_prereqs
   log_info "Stopping docker compose stack..."
-  docker_compose down ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}
+  hm_args
+  docker_compose down ${HM_ARGS[@]+"${HM_ARGS[@]}"}
 }
 
 project_restart() {
@@ -124,7 +167,8 @@ project_restart() {
 project_build() {
   hm_ensure_prereqs
   log_info "Building images..."
-  docker_compose build ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}
+  hm_args
+  docker_compose build ${HM_ARGS[@]+"${HM_ARGS[@]}"}
 }
 
 project_status() {
@@ -134,14 +178,17 @@ project_status() {
 
 project_logs() {
   hm_ensure_prereqs
-  docker_compose logs -f ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}
+  hm_args
+  docker_compose logs -f ${HM_ARGS[@]+"${HM_ARGS[@]}"}
 }
 
 project_test() {
   hm_ensure_prereqs
   log_info "Running Django tests..."
-  docker_compose run --rm backend python manage.py test ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}
+  hm_args
+  docker_compose run --rm backend python manage.py test ${HM_ARGS[@]+"${HM_ARGS[@]}"}
   bash "$DEV_REPO_ROOT/tests/check_ollama_test.sh"
+  bash "$DEV_REPO_ROOT/tests/dev_verbs_test.sh"
 }
 
 # A verb of this repository's own: ./dev shell [service] [shell] [args...].
@@ -163,9 +210,10 @@ project_preflight() {
   bash "$h/ci_django.sh" --workdir backend --python-image python:3.12-slim || rc=1
   log_info "preflight: frontend (npm ci, lint, build)"
   bash "$h/ci_node.sh" --workdir frontend --skip-test || rc=1
-  log_info "preflight: shell (shellcheck, tests/check_ollama_test.sh)"
+  log_info "preflight: shell (shellcheck, tests/*_test.sh)"
   shellcheck -S warning scripts/project.sh tests/*.sh start stop restart status logs || rc=1
   bash tests/check_ollama_test.sh || rc=1
+  bash tests/dev_verbs_test.sh || rc=1
   return "$rc"
 }
 

@@ -50,11 +50,11 @@ scripts/    # Host helper scripts + script-helpers submodule
 
 One entry point, `./dev <verb>` (the script-helpers `./dev` template; this repository's part is `scripts/project.sh`). `./dev --help` lists every verb.
 
-- `./dev start [-b] [service...]` – check the machine's Ollama, then start the stack in the background; `-b` rebuilds the images. `./start` does the same.
+- `./dev start [-b] [service...]` – check the machine's Ollama and the host ports, then start the stack in the background; `-b` rebuilds the images. `./start` does the same. A taken port (`API_PORT`, default 8000; `FRONTEND_PORT`, default 8080) is not swapped silently: on a terminal you pick another and it is saved to `.env`; without one the start stops and names the setting. The browser opens on the dashboard only from a terminal (`HOME_MONITOR_NO_BROWSER=1` turns that off).
 - `./dev run [service...]` – the same, in the foreground.
 - `./dev stop [args...]` – stop containers (extra args go to `docker compose down`). `./stop` does the same.
 - `./dev restart`, `./dev status`, `./dev logs [service]`, `./dev build [service...]` – the usual; `./restart`, `./status` and `./logs` exist too.
-- `./dev test [args...]` – Django tests inside the backend container, then `tests/check_ollama_test.sh`.
+- `./dev test [args...]` – Django tests inside the backend container, then `tests/*_test.sh`.
 - `./dev shell [service] [shell]` – a shell in a service (default `backend`, `bash`).
 - `./dev preflight` – what CI runs, locally.
 

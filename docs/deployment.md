@@ -34,6 +34,8 @@ Services exposed:
 
 - Backend API: http://localhost:${API_PORT:-8000} (health: `/api/health/`)
 - Frontend UI: http://localhost:${FRONTEND_PORT:-8080}
+
+`API_PORT` and `FRONTEND_PORT` are settings in `.env`. `./dev start` checks both first: a taken port gets a replacement on a terminal (saved to `.env`), and stops the start without one. The frontend proxies `/api/` to the backend, so the dashboard does not depend on `API_PORT`.
 - PostgreSQL: on internal Docker network (`db:5432`)
 
 Logs:
