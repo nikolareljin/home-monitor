@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Service shim. Use ./dev logs -- kept: systemd units and scripts call ./logs.
+exec "$(dirname "$0")/dev" "logs" "$@"

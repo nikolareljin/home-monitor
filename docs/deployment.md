@@ -27,8 +27,8 @@ Home Monitor is packaged as a Docker Compose stack that includes PostgreSQL, the
 docker compose build --pull
 docker compose up -d
 ```
-> For local development you can also use `./start` (uses `./dev`/`./scripts/dev.sh` under the hood; requires the `scripts/script-helpers` submodule).
-> Ollama runs on the host, not in compose. The backend container reaches it through `host.docker.internal`; an Ollama that listens on 127.0.0.1 only needs a forwarder onto the Docker bridge, which `./scripts/dev.sh up` checks for.
+> For local development use `./dev start` (or `./start`); it checks the machine's Ollama first and requires the `scripts/script-helpers` submodule. `./dev --help` lists every verb.
+> Ollama runs on the host, not in compose. The backend container reaches it through `host.docker.internal`; an Ollama that listens on 127.0.0.1 only needs a forwarder onto the Docker bridge, which `./dev start` checks for.
 
 Services exposed:
 
@@ -93,6 +93,6 @@ docker compose logs -f backend
 ## Troubleshooting
 
 - Backend fails to start: check `.env` values, DB connectivity, and migrations.
-- Ollama errors in summary response: ensure the host's Ollama is running (`ollama list`) and has the model in `ai-models.env`; `./scripts/dev.sh up` checks both.
+- Ollama errors in summary response: ensure the host's Ollama is running (`ollama list`) and has the model in `ai-models.env`; `./dev start` checks both.
 - Frontend blank: confirm Nginx container is serving built assets (`docker compose logs frontend`).
 - Home Assistant sync errors: verify base URL is reachable from backend container and token has correct scope.

@@ -10,6 +10,9 @@ __pycache__/
 /staticfiles
 /media
 *.sqlite3
+# Python environments (./dev preflight, local runs)
+.venv/
+venv/
 /db.sqlite3
 
 # Environment & secrets

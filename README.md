@@ -37,7 +37,7 @@ scripts/    # Host helper scripts + script-helpers submodule
 
 2. **Launch the stack (host helper)**
    ```bash
-   ./scripts/dev.sh up
+   ./dev start
    ```
    - Django API: http://localhost:8000/api/summary/
    - React UI: http://localhost:8080
@@ -48,18 +48,19 @@ scripts/    # Host helper scripts + script-helpers submodule
 
 ## Helper scripts (host)
 
-- `./start [-b] [service...]` – start the stack via `dev.sh`; `-b` forces rebuild, otherwise starts without rebuilding.
-- `./stop` – stop containers (passes through to `dev.sh down`).
-- `./dev` (symlink to `./scripts/dev.sh`) or `./scripts/dev.sh up [--no-build] [--attach] [service...]` – build images if needed and start the stack (detached by default).
-- `./scripts/dev.sh down` – stop containers (extra args are passed through to `docker compose down`).
-- `./scripts/dev.sh status` – show Docker engine and compose service status with glyphs.
-- `./scripts/dev.sh logs [service]` – tail logs for all services or a single one.
-- `./scripts/dev.sh test-backend [args...]` – run Django tests inside the backend container.
-- `./scripts/dev.sh shell [service] [shell]` – open an interactive shell in a service (defaults to `backend` with `bash`).
+One entry point, `./dev <verb>` (the script-helpers `./dev` template; this repository's part is `scripts/project.sh`). `./dev --help` lists every verb.
 
-The helpers rely on the `scripts/script-helpers` git submodule for logging and Docker utilities. Ensure the submodule is initialized before running the scripts.
+- `./dev start [-b] [service...]` – check the machine's Ollama, then start the stack in the background; `-b` rebuilds the images. `./start` does the same.
+- `./dev run [service...]` – the same, in the foreground.
+- `./dev stop [args...]` – stop containers (extra args go to `docker compose down`). `./stop` does the same.
+- `./dev restart`, `./dev status`, `./dev logs [service]`, `./dev build [service...]` – the usual; `./restart`, `./status` and `./logs` exist too.
+- `./dev test [args...]` – Django tests inside the backend container, then `tests/check_ollama_test.sh`.
+- `./dev shell [service] [shell]` – a shell in a service (default `backend`, `bash`).
+- `./dev preflight` – what CI runs, locally.
 
-> The model is the one `ai-models.env` names (generated from the fleet model registry; do not edit it). To try another on this machine, set `OLLAMA_MODEL` in `.env`. `HOME_MONITOR_SKIP_OLLAMA=1 ./scripts/dev.sh up` starts without the Ollama check.
+The helpers rely on the `scripts/script-helpers` git submodule. Ensure the submodule is initialized before running them.
+
+> The model is the one `ai-models.env` names (generated from the fleet model registry; do not edit it). To try another on this machine, set `OLLAMA_MODEL` in `.env`. `HOME_MONITOR_SKIP_OLLAMA=1 ./dev start` starts without the Ollama check.
 
 ## Django API overview
 

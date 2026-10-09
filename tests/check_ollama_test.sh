@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for check_ollama in scripts/dev.sh: what it hands script-helpers, and
+# Tests for hm_check_ollama in scripts/project.sh (./dev start): what it hands script-helpers, and
 # when it stops the start. The library calls are stubs, so nothing here talks
 # to an Ollama or to Docker.
 set -uo pipefail
@@ -10,17 +10,17 @@ check() { # check <description> <expected> <actual>
   if [[ "$2" == "$3" ]]; then echo "  ok  $1"; else echo "FAIL  $1: expected [$2], got [$3]"; failures=$((failures + 1)); fi
 }
 
-# run <VAR=value>...: sources dev.sh with the library stubbed, runs
-# check_ollama, prints "<exit>|<url asked for models>|<url asked for reach>".
+# run <VAR=value>...: loads project.sh as cli.sh does, with the library
+# stubbed, runs hm_check_ollama, prints "<exit>|<url asked for models>|<url asked for reach>".
 # shellcheck disable=SC2016  # expanded by the inner bash
 run() {
   env -u OLLAMA_BASE_URL_DOCKER -u OLLAMA_MODEL -u OLLAMA_PULL_MISSING -u HOME_MONITOR_SKIP_OLLAMA "$@" bash -c '
-    source "$0/scripts/dev.sh"
+    source "$0/scripts/_bootstrap.sh"; shlib_import logging help; source "$0/scripts/project.sh"
     ensure_url=""; reach_url=""
     ollama_project_ensure_models() { ensure_url="$HM_OLLAMA_URL"; return "${ENSURE_RC:-0}"; }
     ollama_endpoint_container_reach() { reach_url="$1"; return "${REACH_RC:-0}"; }
-    # dev.sh turns on set -e: a failing check would end this shell.
-    rc=0; check_ollama >/dev/null 2>&1 || rc=$?
+    # _bootstrap.sh turns on set -e: a failing check would end this shell.
+    rc=0; hm_check_ollama >/dev/null 2>&1 || rc=$?
     echo "$rc|$ensure_url|$reach_url"
   ' "$root"
 }
@@ -33,9 +33,9 @@ check "a missing model stops before the reach check" "5|http://host.docker.inter
 check "a container that cannot reach it stops the start" "4|http://host.docker.internal:11434|http://host.docker.internal:11434" "$(run REACH_RC=4)"
 check "HOME_MONITOR_SKIP_OLLAMA=1 asks nothing" "0||" "$(run HOME_MONITOR_SKIP_OLLAMA=1)"
 # shellcheck disable=SC2016  # expanded by the inner bash
-check "pulls are asked about unless set" "ask" "$(env -u OLLAMA_PULL_MISSING bash -c 'source "$0/scripts/dev.sh"; ollama_project_ensure_models() { echo "$OLLAMA_PULL_MISSING"; }; ollama_endpoint_container_reach() { :; }; check_ollama 2>/dev/null' "$root")"
+check "pulls are asked about unless set" "ask" "$(env -u OLLAMA_PULL_MISSING bash -c 'source "$0/scripts/_bootstrap.sh"; shlib_import logging help; source "$0/scripts/project.sh"; ollama_project_ensure_models() { echo "$OLLAMA_PULL_MISSING"; }; ollama_endpoint_container_reach() { :; }; hm_check_ollama 2>/dev/null' "$root")"
 # shellcheck disable=SC2016  # expanded by the inner bash
-check "and a value set is kept" "0" "$(OLLAMA_PULL_MISSING=0 bash -c 'source "$0/scripts/dev.sh"; ollama_project_ensure_models() { echo "$OLLAMA_PULL_MISSING"; }; ollama_endpoint_container_reach() { :; }; check_ollama 2>/dev/null' "$root")"
+check "and a value set is kept" "0" "$(OLLAMA_PULL_MISSING=0 bash -c 'source "$0/scripts/_bootstrap.sh"; shlib_import logging help; source "$0/scripts/project.sh"; ollama_project_ensure_models() { echo "$OLLAMA_PULL_MISSING"; }; ollama_endpoint_container_reach() { :; }; hm_check_ollama 2>/dev/null' "$root")"
 
 if [[ "$failures" -gt 0 ]]; then echo "FAILED: $failures"; exit 1; fi
 echo "ALL PASSED"

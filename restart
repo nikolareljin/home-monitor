@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Service shim. Use ./dev restart -- kept: systemd units and scripts call ./restart.
+exec "$(dirname "$0")/dev" "restart" "$@"

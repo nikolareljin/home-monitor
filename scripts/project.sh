@@ -1,42 +1,21 @@
 #!/usr/bin/env bash
-# SCRIPT: dev.sh
-# DESCRIPTION: Host helper for building, running, and inspecting the Home Monitor Docker stack.
-# USAGE: ./scripts/dev.sh <command> [options]
-# PARAMETERS:
-#   command: up|down|build|status|logs|test-backend|shell|help
-# EXAMPLE: ./scripts/dev.sh up --no-build
-set -euo pipefail
+# Home Monitor's part of ./dev (scripts/cli.sh, the script-helpers template).
+# cli.sh sources this file; anything not defined here is the shared verb.
+#
+#   ./dev start [-b] [service...]   check Ollama, then start the stack (-b rebuilds)
+#   ./dev run [service...]          the same, in the foreground
+#   ./dev stop [args...]            docker compose down
+#   ./dev restart                   stop, then start
+#   ./dev status | logs [service] | build [service...]
+#   ./dev test [args...]            Django tests in the backend container, then tests/
+#   ./dev shell [service] [shell]   a shell in a service (default backend, bash)
+#   ./dev preflight                 what CI runs, locally
+#   ./dev deploy                    not applicable (exit 3)
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPT_HELPERS_DIR="${SCRIPT_HELPERS_DIR:-$SCRIPT_DIR/script-helpers}"
+shlib_import docker env browser ollama_endpoint
 
-# shellcheck source=/dev/null
-source "$SCRIPT_HELPERS_DIR/helpers.sh"
-shlib_import logging docker env browser help ollama_endpoint
-
-init_include
-
-usage() {
-  show_help "$0"
-  cat <<'EOF'
-
-Commands:
- up [--no-build] [--attach] [service...]   Build (unless --no-build) and start the stack
- down [args...]                            Stop containers (passes args to docker compose down)
- build [service...]                        Build images
- status                                    Show Docker engine + compose service status
- logs [service]                            Tail logs (all services by default)
- test-backend [args...]                    Run Django tests via docker compose run
- shell [service] [shell]                   Open a shell inside a service (default: backend/bash)
- help                                      Show this help text
-
-Flags:
- -h, --help                                Show this help text
-EOF
-}
-
-ensure_prereqs() {
-  # Hide the default helper error so we can print a more actionable message
+# Hide the default helper error so we can print a more actionable message.
+hm_ensure_prereqs() {
   if ! check_docker >/dev/null 2>&1; then
     if ! command -v docker >/dev/null 2>&1; then
       log_error "Docker CLI not found. Install Docker (Desktop/Engine) and retry."
@@ -53,7 +32,6 @@ ensure_prereqs() {
     fi
     exit 1
   fi
-  check_project_root
 }
 
 # Checks the machine's Ollama before the stack starts: it has the model
@@ -62,13 +40,12 @@ ensure_prereqs() {
 # with no terminal the start stops and names the pull. A failed check stops
 # the start: a dashboard whose advice silently falls back to heuristics looks
 # like it works. HOME_MONITOR_SKIP_OLLAMA=1 skips it.
-check_ollama() {
-  local root url chosen default
+hm_check_ollama() {
+  local root="$DEV_REPO_ROOT" url chosen default
   if [[ "${HOME_MONITOR_SKIP_OLLAMA:-}" == "1" ]]; then
     log_info "Skipping the Ollama check (HOME_MONITOR_SKIP_OLLAMA=1)."
     return 0
   fi
-  root="$(cd "$SCRIPT_DIR/.." && pwd)"
   # The address the backend container is given (OLLAMA_BASE_URL_DOCKER in
   # .env); the library reads host.docker.internal on the host as this machine.
   url="${OLLAMA_BASE_URL_DOCKER:-}"
@@ -103,103 +80,95 @@ check_ollama() {
   ollama_endpoint_container_reach "$url"
 }
 
-cmd_up() {
-  ensure_prereqs
-  local rc=0
-  check_ollama || rc=$?
-  if [[ "$rc" -ne 0 ]]; then
-    log_error "Not starting: the Ollama check failed (exit $rc); the message above says why. HOME_MONITOR_SKIP_OLLAMA=1 starts without it."
-    exit "$rc"
-  fi
-  local build=true detach=true extra=()
+# hm_up <detach:true|false> [-b|--build] [service...]
+hm_up() {
+  local detach="$1" build=false rc=0 args=() extra=()
+  shift
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --no-build) build=false ;;
-      --attach) detach=false ;;
+      -b|--build) build=true ;;
       *) extra+=("$1") ;;
     esac
     shift
   done
-
-  local args=()
+  hm_ensure_prereqs
+  hm_check_ollama || rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    log_error "Not starting: the Ollama check failed (exit $rc); the message above says why. HOME_MONITOR_SKIP_OLLAMA=1 starts without it."
+    exit "$rc"
+  fi
   $build && args+=(--build)
   $detach && args+=(-d)
-
-  log_info "Starting docker compose stack${build:+ (with build)}${detach:+ (detached)}..."
-  docker_compose up "${args[@]}" "${extra[@]}"
-
-  # If we reach here, services should be running; print useful links
-  local api_url="http://localhost:${API_PORT:-8000}"
-  local frontend_url="http://localhost:${FRONTEND_PORT:-8080}"
-  log_info "Backend API: ${api_url}/api/summary/"
-  log_info "Frontend: ${frontend_url}"
-
-  # Attempt to open the frontend in a browser when available
+  log_info "Starting docker compose stack..."
+  docker_compose up ${args[@]+"${args[@]}"} ${extra[@]+"${extra[@]}"}
+  $detach || return 0
+  log_info "Backend API: http://localhost:${API_PORT:-8000}/api/summary/"
+  log_info "Frontend: http://localhost:${FRONTEND_PORT:-8080}"
   open_frontend_when_ready "${FRONTEND_WAIT_TIMEOUT:-120}"
 }
 
-cmd_down() {
-  ensure_prereqs
+project_start() { hm_up true ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}; }
+project_run() { hm_up false ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}; }
+
+project_stop() {
+  hm_ensure_prereqs
   log_info "Stopping docker compose stack..."
-  docker_compose down "$@"
+  docker_compose down ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}
 }
 
-cmd_build() {
-  ensure_prereqs
+project_restart() {
+  project_stop
+  project_start
+}
+
+project_build() {
+  hm_ensure_prereqs
   log_info "Building images..."
-  docker_compose build "$@"
+  docker_compose build ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}
 }
 
-cmd_status() {
-  ensure_prereqs
+project_status() {
+  hm_ensure_prereqs
   docker_status
 }
 
-cmd_logs() {
-  ensure_prereqs
-  log_info "Tailing logs..."
-  docker_compose logs -f "$@"
+project_logs() {
+  hm_ensure_prereqs
+  docker_compose logs -f ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}
 }
 
-cmd_test_backend() {
-  ensure_prereqs
+project_test() {
+  hm_ensure_prereqs
   log_info "Running Django tests..."
-  docker_compose run --rm backend python manage.py test "$@"
+  docker_compose run --rm backend python manage.py test ${DEV_ARGS[@]+"${DEV_ARGS[@]}"}
+  bash "$DEV_REPO_ROOT/tests/check_ollama_test.sh"
 }
 
-cmd_shell() {
-  ensure_prereqs
-  local service="${1:-backend}"; shift || true
-  local shell_cmd="${1:-bash}"; shift || true
-  log_info "Opening shell in service '$service'..."
+# A verb of this repository's own: ./dev shell [service] [shell] [args...].
+project_shell() {
+  local service="${1:-backend}" shell_cmd="${2:-bash}"
+  shift $(( $# < 2 ? $# : 2 ))
+  hm_ensure_prereqs
   docker_compose exec "$service" "$shell_cmd" "$@"
 }
 
-main() {
-  local cmd="${1:-help}"; shift || true
-
-  # Global help flag support (e.g., './dev.sh -h' or './dev.sh up -h')
-  for arg in "$cmd" "$@"; do
-    if [[ "$arg" == "-h" || "$arg" == "--help" ]]; then
-      usage
-      exit 0
-    fi
-  done
-
-  case "$cmd" in
-    up) cmd_up "$@" ;;
-    down) cmd_down "$@" ;;
-    build) cmd_build "$@" ;;
-    status) cmd_status "$@" ;;
-    logs) cmd_logs "$@" ;;
-    test-backend) cmd_test_backend "$@" ;;
-    shell) cmd_shell "$@" ;;
-    help|--help|-h) usage ;;
-    *) log_error "Unknown command: $cmd"; usage; exit 1 ;;
-  esac
+# What CI runs (.github/workflows/ci.yml), through the same script-helpers
+# runners. The shared preflight has no Django stack and skips a Node project
+# with no test script, so it would check almost nothing here. Remove this
+# once it does: https://github.com/nikolareljin/script-helpers/issues/159
+project_preflight() {
+  local h="$SCRIPT_HELPERS_DIR/scripts" rc=0
+  log_info "preflight: backend (Django tests and migrations check, sqlite)"
+  # In a python image: the host's Python may refuse pip installs (PEP 668).
+  bash "$h/ci_django.sh" --workdir backend --python-image python:3.12-slim || rc=1
+  log_info "preflight: frontend (npm ci, lint, build)"
+  bash "$h/ci_node.sh" --workdir frontend --skip-test || rc=1
+  log_info "preflight: shell (shellcheck, tests/check_ollama_test.sh)"
+  shellcheck -S warning scripts/project.sh tests/*.sh start stop restart status logs || rc=1
+  bash tests/check_ollama_test.sh || rc=1
+  return "$rc"
 }
 
-# Sourced (tests), only the functions are defined.
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  main "$@"
-fi
+project_deploy() {
+  not_applicable deploy "Home Monitor runs from docker compose on the machine; there is no deploy target"
+}

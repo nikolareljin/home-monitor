@@ -1,0 +1,39 @@
+name: CI
+
+# Reusable workflows from ci-helpers, always @production (pinning convention).
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    uses: nikolareljin/ci-helpers/.github/workflows/django.yml@production
+    with:
+      working_directory: backend
+      # sqlite: settings.py uses it when POSTGRES_DB is not set.
+      db_image: ""
+
+  frontend:
+    uses: nikolareljin/ci-helpers/.github/workflows/react.yml@production
+    with:
+      working_directory: frontend
+      node_version: "22"
+      lint_command: "npm ci --no-audit --no-fund && npm run lint"
+      # No frontend tests yet: an empty command skips the step.
+      test_command: ""
+
+  shell:
+    uses: nikolareljin/ci-helpers/.github/workflows/shell.yml@production
+    with:
+      # dev.sh sources script-helpers, and the test sources dev.sh.
+      submodules: "true"
+      shellcheck_paths: "scripts tests start stop"
+      bats_command: "bash tests/check_ollama_test.sh"
