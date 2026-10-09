@@ -66,6 +66,9 @@ hm_runtime() {
 hm_start_ollama_container() {
   local port="$1" waited=0
   log_info "OLLAMA_RUNTIME=container: starting the ollama service (port $port on 127.0.0.1)..."
+  # External (docker-compose.yml), so compose does not create it.
+  docker volume inspect home-monitor_ollama_data >/dev/null 2>&1 \
+    || docker volume create home-monitor_ollama_data >/dev/null || return 1
   docker_compose up -d ollama || return 1
   until curl -fsS -m 2 -o /dev/null "http://127.0.0.1:${port}/api/tags" 2>/dev/null; do
     sleep 2; waited=$((waited + 2))

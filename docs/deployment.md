@@ -47,7 +47,7 @@ docker compose logs -f backend
 ## Data Persistence
 
 - Postgres data stored in volume `postgres_data`
-- Ollama models live with the host's Ollama, shared with other projects; the fallback container keeps its own in volume `ollama_data`
+- Ollama models live with the host's Ollama, shared with other projects; the fallback container keeps its own in the external volume `home-monitor_ollama_data`, which `./dev stop -v` does not remove
 - Django media/static in volumes `media_data`, `static_data`
 
 ## Health Checks

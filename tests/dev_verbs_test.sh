@@ -79,6 +79,10 @@ check "stop runs with the ollama profile" "yes" "$(grep -q 'COMPOSE_PROFILES=oll
 HOME_MONITOR_SKIP_OLLAMA=1 HOME_MONITOR_NO_BROWSER=1 PATH="$tmp/bin:$PATH" "$root/dev" start >/dev/null 2>&1 </dev/null
 check "start on the host leaves the profile off" "no" "$(grep -q 'COMPOSE_PROFILES=ollama' "$tmp/env" && echo yes || echo no)"
 
+# The fallback's models survive `./dev stop -v` (compose down -v removes every
+# volume the file declares, unless it is external).
+check "the ollama models volume is external, with a fixed name" "external: true|name: home-monitor_ollama_data" "$(awk '/^volumes:/{v=1} v&&/^  ollama_data:/{o=1;next} o&&/^  [a-z]/{o=0} o' "$root/docker-compose.yml" | grep -E 'external|name' | sed 's/^ *//' | sort | paste -sd'|')"
+
 deploy_rc=0; "$root/dev" deploy >/dev/null 2>&1 || deploy_rc=$?
 check "deploy is not applicable (exit 3)" "3" "$deploy_rc"
 

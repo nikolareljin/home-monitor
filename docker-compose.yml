@@ -82,7 +82,11 @@ networks:
 
 volumes:
   postgres_data:
-  # Models of the fallback ollama container; never removed by ./dev.
+  # Models of the fallback ollama container. External, with a fixed name:
+  # `docker compose down -v` (./dev stop -v) removes every volume it declares,
+  # and must not remove gigabytes of models. ./dev start creates it.
   ollama_data:
+    external: true
+    name: home-monitor_ollama_data
   media_data:
   static_data:
