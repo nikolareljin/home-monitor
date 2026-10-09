@@ -18,6 +18,20 @@ services:
       timeout: 5s
       retries: 5
 
+  # The fallback, off by default: OLLAMA_RUNTIME=container in .env makes
+  # ./dev start run it (compose profile "ollama") and point the backend at it.
+  # The default is the machine's one Ollama, on the host.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OLLAMA_CONTAINER_PORT:-11435}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - monitor_net
+
   backend:
     build:
       context: ./backend
@@ -33,7 +47,8 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: home_monitor.settings
       POSTGRES_HOST: db
-      # The machine's one Ollama, on the host; there is no Ollama container here.
+      # The machine's one Ollama, on the host; with OLLAMA_RUNTIME=container,
+      # ./dev start sets this to http://ollama:11434 (the fallback service).
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL_DOCKER:-http://host.docker.internal:11434}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -67,5 +82,7 @@ networks:
 
 volumes:
   postgres_data:
+  # Models of the fallback ollama container; never removed by ./dev.
+  ollama_data:
   media_data:
   static_data:

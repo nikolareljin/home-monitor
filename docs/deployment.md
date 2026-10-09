@@ -28,7 +28,7 @@ docker compose build --pull
 docker compose up -d
 ```
 > For local development use `./dev start` (or `./start`); it checks the machine's Ollama first and requires the `scripts/script-helpers` submodule. `./dev --help` lists every verb.
-> Ollama runs on the host, not in compose. The backend container reaches it through `host.docker.internal`; an Ollama that listens on 127.0.0.1 only needs a forwarder onto the Docker bridge, which `./dev start` checks for.
+> By default Ollama runs on the host: the backend container reaches it through `host.docker.internal`, and an Ollama that listens on 127.0.0.1 only needs a forwarder onto the Docker bridge, which `./dev start` checks for. The fallback is the `ollama` service in compose (profile `ollama`): `OLLAMA_RUNTIME=container` in `.env` makes `./dev start` run it and check the model in it.
 
 Services exposed:
 
@@ -47,7 +47,7 @@ docker compose logs -f backend
 ## Data Persistence
 
 - Postgres data stored in volume `postgres_data`
-- Ollama models live with the host's Ollama, shared with other projects
+- Ollama models live with the host's Ollama, shared with other projects; the fallback container keeps its own in volume `ollama_data`
 - Django media/static in volumes `media_data`, `static_data`
 
 ## Health Checks

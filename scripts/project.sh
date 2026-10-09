@@ -45,6 +45,37 @@ hm_ensure_prereqs() {
   fi
 }
 
+# Which Ollama the stack uses: OLLAMA_RUNTIME=host (default), the machine's
+# one Ollama; or container, the fallback: the profiled `ollama` service in
+# docker-compose.yml, with its models in this project's ollama_data volume.
+# COMPOSE_PROFILES carries the choice to every compose call (up, down, logs).
+hm_runtime() {
+  HM_RUNTIME="${OLLAMA_RUNTIME:-}"
+  [[ -n "$HM_RUNTIME" ]] || HM_RUNTIME="$(ollama_models_file_get "$DEV_REPO_ROOT/.env" OLLAMA_RUNTIME 2>/dev/null)" || HM_RUNTIME=""
+  HM_RUNTIME="${HM_RUNTIME:-host}"
+  case "$HM_RUNTIME" in
+    host) ;;
+    container) export COMPOSE_PROFILES=ollama ;;
+    *) log_error "OLLAMA_RUNTIME=$HM_RUNTIME: use host (the machine's Ollama) or container (the ollama service in docker-compose.yml)."
+       return 9 ;;
+  esac
+}
+
+# Starts the ollama container and waits until it answers on the host port it
+# publishes (OLLAMA_CONTAINER_PORT, 127.0.0.1 only).
+hm_start_ollama_container() {
+  local port="$1" waited=0
+  log_info "OLLAMA_RUNTIME=container: starting the ollama service (port $port on 127.0.0.1)..."
+  docker_compose up -d ollama || return 1
+  until curl -fsS -m 2 -o /dev/null "http://127.0.0.1:${port}/api/tags" 2>/dev/null; do
+    sleep 2; waited=$((waited + 2))
+    if [[ "$waited" -ge 60 ]]; then
+      log_error "The ollama container did not answer on 127.0.0.1:$port within 60s: ./dev logs ollama"
+      return 4
+    fi
+  done
+}
+
 # Checks the machine's Ollama before the stack starts: it has the model
 # ai-models.env names (a value in .env wins), and the backend container can
 # reach it. A missing model is listed with its size and pulled after a yes;
@@ -57,19 +88,7 @@ hm_check_ollama() {
     log_info "Skipping the Ollama check (HOME_MONITOR_SKIP_OLLAMA=1)."
     return 0
   fi
-  # The address the backend container is given (OLLAMA_BASE_URL_DOCKER in
-  # .env); the library reads host.docker.internal on the host as this machine.
-  url="${OLLAMA_BASE_URL_DOCKER:-}"
-  [[ -n "$url" ]] || url="$(ollama_models_file_get "$root/.env" OLLAMA_BASE_URL_DOCKER 2>/dev/null)" || url=""
-  url="${url:-http://host.docker.internal:11434}"
-  # The old env.example pointed at an Ollama container compose no longer starts.
-  case "$url" in
-    ollama|ollama:*|http://ollama|http://ollama[:/]*|https://ollama|https://ollama[:/]*)
-      log_error "OLLAMA_BASE_URL_DOCKER=$url names the Ollama container Home Monitor no longer runs."
-      log_error "Set it to http://host.docker.internal:11434 in .env (the machine's own Ollama), or delete the line."
-      return 9
-      ;;
-  esac
+  hm_runtime || return
 
   # A model in .env wins over ai-models.env. Older .env files were copied from
   # the old example (llama2), so say which one is used.
@@ -85,8 +104,43 @@ hm_check_ollama() {
   if [[ -z "${OLLAMA_PULL_MISSING:-}" ]] && [[ -z "$(ollama_models_file_get "$root/.env" OLLAMA_PULL_MISSING 2>/dev/null)" ]]; then
     export OLLAMA_PULL_MISSING=ask
   fi
+
+  if [[ "$HM_RUNTIME" == "container" ]]; then
+    local port="${OLLAMA_CONTAINER_PORT:-}"
+    [[ -n "$port" ]] || port="$(ollama_models_file_get "$root/.env" OLLAMA_CONTAINER_PORT 2>/dev/null)" || port=""
+    port="${port:-11435}"
+    hm_start_ollama_container "$port" || return
+    # The backend reaches the container by its service name; compose reads
+    # this for the backend's OLLAMA_BASE_URL.
+    export OLLAMA_BASE_URL_DOCKER=http://ollama:11434
+    # docker mode: the library asks 127.0.0.1:<published port> and measures
+    # Docker's disk, where the ollama_data volume lives.
+    export HM_OLLAMA_URL=http://ollama:11434 OLLAMA_URL_VARS=HM_OLLAMA_URL OLLAMA_MODE=docker OLLAMA_HOST_PORT="$port"
+    ollama_project_ensure_models "$root/ai-models.env" "$root/.env" OLLAMA_MODEL
+    return
+  fi
+
+  # The address the backend container is given (OLLAMA_BASE_URL_DOCKER in
+  # .env); the library reads host.docker.internal on the host as this machine.
+  url="${OLLAMA_BASE_URL_DOCKER:-}"
+  [[ -n "$url" ]] || url="$(ollama_models_file_get "$root/.env" OLLAMA_BASE_URL_DOCKER 2>/dev/null)" || url=""
+  url="${url:-http://host.docker.internal:11434}"
+  # The ollama service only runs with OLLAMA_RUNTIME=container.
+  case "$url" in
+    ollama|ollama:*|http://ollama|http://ollama[:/]*|https://ollama|https://ollama[:/]*)
+      log_error "OLLAMA_BASE_URL_DOCKER=$url names the ollama container, which runs only with OLLAMA_RUNTIME=container."
+      log_error "Set OLLAMA_RUNTIME=container in .env for it, or set OLLAMA_BASE_URL_DOCKER=http://host.docker.internal:11434 (the machine's own Ollama), or delete the line."
+      return 9
+      ;;
+  esac
+
   export HM_OLLAMA_URL="$url" OLLAMA_URL_VARS=HM_OLLAMA_URL
-  ollama_project_ensure_models "$root/ai-models.env" "$root/.env" OLLAMA_MODEL || return
+  local rc=0
+  ollama_project_ensure_models "$root/ai-models.env" "$root/.env" OLLAMA_MODEL || rc=$?
+  if [[ "$rc" -eq 4 ]]; then
+    log_error "No Ollama on this machine answers. Install one, or use the container fallback: OLLAMA_RUNTIME=container in .env."
+  fi
+  [[ "$rc" -eq 0 ]] || return "$rc"
   # Answering on 127.0.0.1 does not prove the container can reach it.
   ollama_endpoint_container_reach "$url"
 }
@@ -168,6 +222,9 @@ project_run() { hm_args; hm_up false ${HM_ARGS[@]+"${HM_ARGS[@]}"}; }
 
 project_stop() {
   hm_ensure_prereqs
+  # Every profile: an ollama container started under OLLAMA_RUNTIME=container
+  # stops too after switching back to host. Its models volume is kept.
+  export COMPOSE_PROFILES=ollama
   log_info "Stopping docker compose stack..."
   hm_args
   docker_compose down ${HM_ARGS[@]+"${HM_ARGS[@]}"}
@@ -180,6 +237,7 @@ project_restart() {
 
 project_build() {
   hm_ensure_prereqs
+  hm_runtime || exit $?
   log_info "Building images..."
   hm_args
   docker_compose build ${HM_ARGS[@]+"${HM_ARGS[@]}"}
@@ -187,17 +245,20 @@ project_build() {
 
 project_status() {
   hm_ensure_prereqs
+  hm_runtime || exit $?
   docker_status
 }
 
 project_logs() {
   hm_ensure_prereqs
+  hm_runtime || exit $?
   hm_args
   docker_compose logs -f ${HM_ARGS[@]+"${HM_ARGS[@]}"}
 }
 
 project_test() {
   hm_ensure_prereqs
+  hm_runtime || exit $?
   log_info "Running Django tests..."
   hm_args
   docker_compose run --rm backend python manage.py test ${HM_ARGS[@]+"${HM_ARGS[@]}"}
@@ -210,6 +271,7 @@ project_shell() {
   local service="${1:-backend}" shell_cmd="${2:-bash}"
   shift $(( $# < 2 ? $# : 2 ))
   hm_ensure_prereqs
+  hm_runtime || exit $?
   docker_compose exec "$service" "$shell_cmd" "$@"
 }
 

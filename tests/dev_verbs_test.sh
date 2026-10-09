@@ -15,6 +15,7 @@ mkdir -p "$tmp/bin"
 cat >"$tmp/bin/docker" <<STUB
 #!/usr/bin/env sh
 echo "docker \$*" >> "$tmp/log"
+echo "COMPOSE_PROFILES=\${COMPOSE_PROFILES:-}" >> "$tmp/env"
 case "\$1" in info) echo "Server Version: 27" ;; compose) [ "\$2" = version ] && echo "Docker Compose version v2.30.0" ;; esac
 exit 0
 STUB
@@ -66,9 +67,17 @@ s=socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind(("127.0.0.1", int(sys.argv[1]))); s.listen(); time.sleep(30)' "$FRONTEND_PORT" &
 holder=$!
 for _ in 1 2 3 4 5 6 7 8 9 10; do (exec 3<>"/dev/tcp/127.0.0.1/$FRONTEND_PORT") 2>/dev/null && break; sleep 0.2; done
-order="$(OLLAMA_BASE_URL_DOCKER=http://ollama:11434 HOME_MONITOR_NO_BROWSER=1 PATH="$tmp/bin:$PATH" "$root/dev" start </dev/null 2>&1 | grep -oE 'FRONTEND_PORT=N|no longer runs' | head -1)"
+order="$(OLLAMA_BASE_URL_DOCKER=http://ollama:11434 HOME_MONITOR_NO_BROWSER=1 PATH="$tmp/bin:$PATH" "$root/dev" start </dev/null 2>&1 | grep -oE 'FRONTEND_PORT=N|runs only with' | head -1)"
 kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null
 check "a taken port stops the start before the Ollama check" "FRONTEND_PORT=N" "$order"
+
+# stop takes every profile along, so a fallback container stops too.
+: >"$tmp/log"; : >"$tmp/env"
+HOME_MONITOR_NO_BROWSER=1 PATH="$tmp/bin:$PATH" "$root/dev" stop >/dev/null 2>&1 </dev/null
+check "stop runs with the ollama profile" "yes" "$(grep -q 'COMPOSE_PROFILES=ollama' "$tmp/env" && echo yes)"
+: >"$tmp/env"
+HOME_MONITOR_SKIP_OLLAMA=1 HOME_MONITOR_NO_BROWSER=1 PATH="$tmp/bin:$PATH" "$root/dev" start >/dev/null 2>&1 </dev/null
+check "start on the host leaves the profile off" "no" "$(grep -q 'COMPOSE_PROFILES=ollama' "$tmp/env" && echo yes || echo no)"
 
 deploy_rc=0; "$root/dev" deploy >/dev/null 2>&1 || deploy_rc=$?
 check "deploy is not applicable (exit 3)" "3" "$deploy_rc"
