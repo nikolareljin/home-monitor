@@ -112,6 +112,19 @@ hm_check_ollama() {
     local port="${OLLAMA_CONTAINER_PORT:-}"
     [[ -n "$port" ]] || port="$(ollama_models_file_get "$root/.env" OLLAMA_CONTAINER_PORT 2>/dev/null)" || port=""
     port="${port:-11435}"
+    # A taken port (another project's fallback, say) is not swapped silently:
+    # port_choose asks on a terminal and stops without one. This stack's own
+    # running ollama container is not "taken".
+    if ! docker_compose port ollama 11434 2>/dev/null | grep -q ":${port}\$"; then
+      local chosen
+      chosen="$(port_choose "$port" "OLLAMA_CONTAINER_PORT=N in .env")" || return 1
+      if [[ "$chosen" != "$port" ]]; then
+        env_set_value "$root/.env" OLLAMA_CONTAINER_PORT "$chosen"
+        log_info "OLLAMA_CONTAINER_PORT=$chosen saved in .env"
+        port="$chosen"
+      fi
+    fi
+    export OLLAMA_CONTAINER_PORT="$port"
     hm_start_ollama_container "$port" || return
     # The backend reaches the container by its service name; compose reads
     # this for the backend's OLLAMA_BASE_URL.
